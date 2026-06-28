@@ -1,0 +1,99 @@
+import React from "react";
+const { useState } = React;
+import { C, SERIF, SH, brl } from "./constants.js";
+
+export function ModalNome({onOk}) {
+  const [v, setV] = useState("");
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(35,41,31,.55)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+      <div style={{background:C.card,borderRadius:14,padding:"26px 24px",maxWidth:380,width:"100%",border:"1px solid "+C.line}}>
+        <h2 style={{fontFamily:SERIF,color:C.pine,margin:"0 0 6px"}}>Quem é você?</h2>
+        <p style={{fontSize:13,color:C.muted,marginTop:0}}>Seu nome aparece na barra de quem está online editando.</p>
+        <input autoFocus value={v} onChange={e=>setV(e.target.value)}
+          onKeyDown={e=>{ if(e.key==="Enter"&&v.trim()) onOk(v.trim()); }}
+          placeholder="Ex.: Arion"
+          style={{width:"100%",padding:"10px 12px",borderRadius:8,border:"1px solid "+C.line,fontSize:15,background:C.paper,color:C.ink}}/>
+        <button onClick={()=>{ if(v.trim()) onOk(v.trim()); }}
+          style={{marginTop:14,width:"100%",background:C.pine,color:"#fff",border:"none",borderRadius:8,padding:"11px",fontSize:15,fontWeight:600,cursor:"pointer"}}>
+          Entrar
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export function Centro({txt}) {
+  return <div style={{maxWidth:1080,margin:"80px auto",textAlign:"center",color:C.muted}}>{txt}</div>;
+}
+
+export function BarraPresenca({online, nome, ultimoSave, status, pendente, onSync}) {
+  const unicos = []; online.forEach(n=>{ if(unicos.indexOf(n)<0) unicos.push(n); });
+  if (unicos.indexOf(nome) < 0) unicos.unshift(nome);
+  const txt = unicos.map(n => n===nome ? n+" (você)" : n).join(", ");
+  return (
+    <div style={{background:C.green,color:"#fff",fontSize:13}}>
+      <div style={{maxWidth:1080,margin:"0 auto",padding:"7px 20px",display:"flex",alignItems:"center",gap:14,flexWrap:"wrap"}}>
+        <span style={{display:"inline-flex",alignItems:"center",gap:6}}>
+          <span style={{width:8,height:8,borderRadius:"50%",background:"#5DD68B",display:"inline-block"}}></span>
+          Online: {txt||"—"}
+        </span>
+        <span style={{opacity:.85}}>Último save: {ultimoSave||"—"}</span>
+        <span style={{marginLeft:"auto",opacity:.95}}>{status}</span>
+        {pendente && (
+          <button onClick={onSync}
+            style={{background:"#fff",color:C.green,border:"none",borderRadius:6,padding:"4px 10px",fontSize:12,fontWeight:700,cursor:"pointer"}}>
+            ↻ Sincronizar novas alterações
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export function Header({tab, setTab}) {
+  const tabs = [["cardapio","Calendário"],["custos","Fichas & custos"],["operacao","Operação"],["relatorio","Relatório"],["mural","Mural"]];
+  const logo = typeof window !== "undefined" ? window.LOGO : null;
+  return (
+    <header style={{background:"rgba(255,255,255,.9)",backdropFilter:"saturate(180%) blur(8px)",WebkitBackdropFilter:"saturate(180%) blur(8px)",borderBottom:"1px solid "+C.line,boxShadow:SH,marginBottom:28,position:"sticky",top:0,zIndex:50}}>
+      <div style={{maxWidth:1080,margin:"0 auto",padding:"0 20px"}}>
+        <div style={{display:"flex",alignItems:"center",gap:14,flexWrap:"wrap",padding:"12px 0 10px"}}>
+          {logo && <img src={logo} alt="Sementes Veneza" style={{height:46,width:"auto"}}/>}
+          <div style={{borderLeft:"1px solid "+C.line,paddingLeft:14}}>
+            <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:C.accent,fontWeight:700}}>Refeitório · UBS</div>
+            <h1 style={{fontFamily:SERIF,fontSize:21,margin:"1px 0 0",fontWeight:600,color:C.brand,letterSpacing:-0.3}}>Cardápio do refeitório</h1>
+          </div>
+        </div>
+        <nav style={{display:"flex",gap:2,flexWrap:"wrap"}}>
+          {tabs.map(([id,label])=>{
+            const a = tab===id;
+            return (
+              <button key={id} onClick={()=>setTab(id)}
+                style={{border:"none",cursor:"pointer",fontSize:13.5,fontWeight:a?700:500,padding:"11px 15px",background:"transparent",color:a?C.brand:C.muted,borderBottom:"2.5px solid "+(a?C.brand:"transparent"),marginBottom:-1,transition:"color .15s"}}>
+                {label}
+              </button>
+            );
+          })}
+        </nav>
+      </div>
+    </header>
+  );
+}
+
+export function Stat({rotulo, valor, sub}) {
+  return (
+    <div style={{background:C.card,border:"1px solid "+C.line,borderRadius:14,padding:"15px 18px",flex:"1 1 160px",boxShadow:SH,borderLeft:"3px solid "+C.brand}}>
+      <div style={{fontSize:10.5,letterSpacing:1.2,textTransform:"uppercase",color:C.muted,fontWeight:600}}>{rotulo}</div>
+      <div style={{fontSize:27,fontWeight:700,color:C.ink,fontVariantNumeric:"tabular-nums",marginTop:4,letterSpacing:-0.5}}>{valor}</div>
+      {sub && <div style={{fontSize:12,color:C.muted,marginTop:2}}>{sub}</div>}
+    </div>
+  );
+}
+
+export function SectionTitle({children}) {
+  return (
+    <h2 style={{fontSize:13,fontWeight:700,letterSpacing:0.8,textTransform:"uppercase",color:C.brand,margin:"30px 0 14px",display:"flex",alignItems:"center",gap:8}}>
+      <span style={{width:14,height:2,background:C.accent,borderRadius:2,display:"inline-block"}}></span>
+      {children}
+    </h2>
+  );
+}
