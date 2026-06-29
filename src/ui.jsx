@@ -76,7 +76,7 @@ export function BarraPresenca({online, nome, ultimoSave, status, pendente, onSyn
 }
 
 export function Header({tab, setTab, onSair, titulo="Restaurante", eyebrow="Sementes Veneza · Refeitório"}) {
-  const tabs = [["cardapio","Calendário"],["custos","Fichas & custos"],["operacao","Operação"],["relatorio","Relatório"],["mural","Mural"]];
+  const tabs = [["cardapio","Calendário"],["custos","Fichas & custos"],["operacao","Operação"],["painel","Painel"],["relatorio","Relatório"],["mural","Mural"]];
   const logo = typeof window !== "undefined" ? window.LOGO : null;
   const [isMobile, setIsMobile] = useState(false);
   const [menuAberto, setMenuAberto] = useState(false);

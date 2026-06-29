@@ -12,6 +12,7 @@ import { Centro, BarraPresenca, Header } from "../ui.jsx";
 import { Calendario } from "../tabs/Calendario.jsx";
 import { Custos }     from "../tabs/Custos.jsx";
 import { Operacao }   from "../tabs/Operacao.jsx";
+import { Painel }     from "../tabs/Painel.jsx";
 import { Relatorio }  from "../tabs/Relatorio.jsx";
 import { Mural }      from "../tabs/Mural.jsx";
 
@@ -151,6 +152,7 @@ export function Restaurante({ nome, onSair }) {
         {tab==="cardapio"  && <Calendario {...{cardapio,pratos,pratoMap,custoPrato,custoPratosLista,tiposRefeicao,addPratoMeal,removePratoMeal,ativarRefDia,removerRefDia,setPrevisto,setRealizado,copiarDia,copiarDiaIntervalo,limparDia,limparDias,trocarDias,copiarSemana,recalcularDia,segDe}}/>}
         {tab==="custos"    && <Custos     {...{insumos,insumoMap,pratos,custoLinha,custoPrato,updateInsumo,addInsumo,removeInsumo,ceasa,setCeasa,updatePrato,addPrato,removePrato,addLinha,updateLinha,removeLinha}}/>}
         {tab==="operacao"  && <Operacao   {...{cardapio,pratoMap,custoPrato,custoPratosLista,tiposRefeicao,insumos,insumoMap,estoque,setEstoqueItem}}/>}
+        {tab==="painel"    && <Painel     {...{cardapio,pratoMap,insumoMap,custoPrato,custoPratosLista,tiposRefeicao,insumos}}/>}
         {tab==="relatorio" && <Relatorio  {...{cardapio,pratoMap,custoPratosLista,tiposRefeicao}}/>}
         {tab==="mural"     && <Mural      {...{cardapio,pratoMap,tiposRefeicao}}/>}
       </main>
