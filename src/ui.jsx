@@ -2,13 +2,13 @@ import React from "react";
 const { useState } = React;
 import { C, SERIF, SH, brl } from "./constants.js";
 
-export function ModalNome({onOk}) {
+export function ModalNome({onOk, onVoltar}) {
   const [v, setV] = useState("");
   return (
     <div style={{position:"fixed",inset:0,background:"rgba(35,41,31,.55)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
       <div style={{background:C.card,borderRadius:14,padding:"26px 24px",maxWidth:380,width:"100%",border:"1px solid "+C.line}}>
         <h2 style={{fontFamily:SERIF,color:C.pine,margin:"0 0 6px"}}>Quem é você?</h2>
-        <p style={{fontSize:13,color:C.muted,marginTop:0}}>Seu nome aparece na barra de quem está online editando.</p>
+        <p style={{fontSize:13,color:C.muted,marginTop:0}}>Informe seu nome para acessar o módulo.</p>
         <input autoFocus value={v} onChange={e=>setV(e.target.value)}
           onKeyDown={e=>{ if(e.key==="Enter"&&v.trim()) onOk(v.trim()); }}
           placeholder="Ex.: Arion"
@@ -17,6 +17,12 @@ export function ModalNome({onOk}) {
           style={{marginTop:14,width:"100%",background:C.pine,color:"#fff",border:"none",borderRadius:8,padding:"11px",fontSize:15,fontWeight:600,cursor:"pointer"}}>
           Entrar
         </button>
+        {onVoltar && (
+          <button onClick={onVoltar}
+            style={{marginTop:8,width:"100%",background:"transparent",color:C.muted,border:"none",borderRadius:8,padding:"8px",fontSize:13,fontWeight:600,cursor:"pointer"}}>
+            ← Voltar aos módulos
+          </button>
+        )}
       </div>
     </div>
   );
@@ -50,7 +56,7 @@ export function BarraPresenca({online, nome, ultimoSave, status, pendente, onSyn
   );
 }
 
-export function Header({tab, setTab}) {
+export function Header({tab, setTab, onSair}) {
   const tabs = [["cardapio","Calendário"],["custos","Fichas & custos"],["operacao","Operação"],["relatorio","Relatório"],["mural","Mural"]];
   const logo = typeof window !== "undefined" ? window.LOGO : null;
   return (
@@ -62,6 +68,12 @@ export function Header({tab, setTab}) {
             <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:C.accent,fontWeight:700}}>Refeitório · UBS</div>
             <h1 style={{fontFamily:SERIF,fontSize:21,margin:"1px 0 0",fontWeight:600,color:C.brand,letterSpacing:-0.3}}>Cardápio do refeitório</h1>
           </div>
+          {onSair && (
+            <button onClick={onSair} title="Voltar à central de aplicativos"
+              style={{marginLeft:"auto",background:C.sage,color:C.brand,border:"1px solid "+C.line,borderRadius:8,padding:"8px 13px",fontSize:13,fontWeight:600,cursor:"pointer",display:"inline-flex",alignItems:"center",gap:6}}>
+              <span aria-hidden>←</span> Módulos
+            </button>
+          )}
         </div>
         <nav style={{display:"flex",gap:2,flexWrap:"wrap"}}>
           {tabs.map(([id,label])=>{
