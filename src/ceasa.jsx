@@ -89,6 +89,7 @@ export function PrecoCeasaCell({insumo, updateInsumo, ceasa, inp}) {
         <input type="number" step="0.1" min="0" value={insumo.preco}
           onChange={e=>updateInsumo(insumo.id,"preco",parseFloat(e.target.value)||0)}
           style={{...inp,width:74,textAlign:"right"}}/>
+        <span style={{color:C.muted,fontSize:12}}>/{insumo.unidade||"kg"}</span>
         <button onClick={()=>setAberto(a=>!a)}
           title={itens?"Consultar preço no CEASA":"Suba o PDF do CEASA (seção abaixo)"}
           style={{border:"1px solid "+(itens?C.brand2:C.line),background:itens?C.sage:C.card,color:itens?C.brand:C.muted,borderRadius:6,padding:"5px 8px",cursor:"pointer",fontSize:11,fontWeight:600,whiteSpace:"nowrap"}}>

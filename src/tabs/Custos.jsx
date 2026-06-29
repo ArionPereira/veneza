@@ -1,6 +1,6 @@
 import React from "react";
 const { useState } = React;
-import { C, SH, SH2, SERIF, CATEGORIAS, brl } from "../constants.js";
+import { C, SH, SH2, SERIF, CATEGORIAS, UNIDADES, rotuloQtd, brl } from "../constants.js";
 import { SectionTitle } from "../ui.jsx";
 import { PrecoCeasaCell, AtualizarCeasa, RefCarnes, ConsultaCeasa } from "../ceasa.jsx";
 
@@ -27,7 +27,7 @@ function FichaCard({prato, insumos, insumoMap, custoLinha, custoPrato, inp, hiNa
           <table style={{width:"100%",minWidth:420}}>
             <thead><tr>
               <th style={{textAlign:"left",fontSize:11,color:C.muted,padding:"4px 6px"}}>Ingrediente</th>
-              <th style={{textAlign:"right",fontSize:11,color:C.muted,padding:"4px 6px"}}>g cru/pessoa</th>
+              <th style={{textAlign:"right",fontSize:11,color:C.muted,padding:"4px 6px"}}>Qtd cru/pessoa</th>
               <th style={{textAlign:"right",fontSize:11,color:C.muted,padding:"4px 6px"}}>FC</th>
               <th style={{textAlign:"right",fontSize:11,color:C.muted,padding:"4px 6px"}}>Custo</th>
               <th style={{width:30}}></th>
@@ -40,10 +40,11 @@ function FichaCard({prato, insumos, insumoMap, custoLinha, custoPrato, inp, hiNa
                       {insumos.map(i=><option key={i.id} value={i.id}>{i.nome}</option>)}
                     </select>
                   </td>
-                  <td style={{padding:"3px 6px",textAlign:"right"}}>
-                    <input type="number" step="5" min="0" value={l.g}
+                  <td style={{padding:"3px 6px",textAlign:"right",whiteSpace:"nowrap"}}>
+                    <input type="number" step={ins&&ins.unidade==="un"?"1":"5"} min="0" value={l.g}
                       onChange={e=>updateLinha(prato.id,idx,"g",parseFloat(e.target.value)||0)}
-                      style={{...inp,width:80,textAlign:"right"}}/>
+                      style={{...inp,width:64,textAlign:"right"}}/>
+                    <span style={{marginLeft:5,fontSize:12,color:C.muted}}>{rotuloQtd(ins&&ins.unidade)}</span>
                   </td>
                   <td style={{padding:"3px 6px",textAlign:"right",color:C.muted,fontVariantNumeric:"tabular-nums"}}>{ins?Number(ins.fc).toFixed(2):"—"}</td>
                   <td style={{padding:"3px 6px",textAlign:"right",fontVariantNumeric:"tabular-nums"}}>{brl(custoLinha(l))}</td>
@@ -106,7 +107,7 @@ export function Custos({insumos, insumoMap, pratos, custoLinha, custoPrato, upda
           <thead><tr style={{background:C.sage}}>
             <th style={{...cell,textAlign:"left",fontWeight:700}}>Insumo</th>
             <th style={{...cell,textAlign:"center",fontWeight:700}}>Un.</th>
-            <th style={{...cell,textAlign:"right",fontWeight:700}}>Preço/kg</th>
+            <th style={{...cell,textAlign:"right",fontWeight:700}}>Preço</th>
             <th style={{...cell,textAlign:"center",fontWeight:700}}>FC</th>
             <th style={{...cell,textAlign:"center",fontWeight:700}}>Mín.</th>
             <th style={{...cell,width:36}}></th>
@@ -117,8 +118,7 @@ export function Custos({insumos, insumoMap, pratos, custoLinha, custoPrato, upda
                 <td style={cell}><input value={i.nome} onChange={e=>updateInsumo(i.id,"nome",e.target.value)} style={{...inp,width:"100%",...hiName}}/></td>
                 <td style={{...cell,textAlign:"center"}}>
                   <select value={i.unidade} onChange={e=>updateInsumo(i.id,"unidade",e.target.value)} style={{...inp,width:64}}>
-                    <option value="kg">kg</option>
-                    <option value="L">L</option>
+                    {UNIDADES.map(u=><option key={u} value={u}>{u}</option>)}
                   </select>
                 </td>
                 <td style={{...cell,textAlign:"right"}}><PrecoCeasaCell insumo={i} updateInsumo={updateInsumo} ceasa={ceasa} inp={inp}/></td>
@@ -147,7 +147,7 @@ export function Custos({insumos, insumoMap, pratos, custoLinha, custoPrato, upda
 
     {view==="fichas" && (<>
       <SectionTitle>Fichas técnicas</SectionTitle>
-      <p style={{fontSize:13,color:C.muted,marginTop:-6}}>Gramagem <b>em cru por pessoa</b>. Custo da porção = (g ÷ 1000) × FC × preço/kg, somado por ingrediente.</p>
+      <p style={{fontSize:13,color:C.muted,marginTop:-6}}>Quantidade <b>em cru por pessoa</b> — em <b>g</b> (insumo em kg), <b>mL</b> (litro) ou <b>un</b> (unidade). Custo da porção = qtd × FC × preço, somado por ingrediente.</p>
       <div style={toolbar}>
         <button onClick={addPrato} style={addBtn}>+ Adicionar prato</button>
         <input value={busca} onChange={e=>setBusca(e.target.value)} placeholder="Buscar prato…" style={buscaInp}/>

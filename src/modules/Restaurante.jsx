@@ -1,7 +1,7 @@
 import React from "react";
 const { useState, useEffect, useMemo, useRef } = React;
 
-import { C, clientId, novoId, estaEditando, fmtHora, brl } from "../constants.js";
+import { C, clientId, novoId, estaEditando, fmtHora, brl, fatorUnidade } from "../constants.js";
 import { hojeISO, addDias, fmtData, iso, fromISO } from "../dates.js";
 import { sb, CHAVE } from "../db.js";
 import {
@@ -134,7 +134,7 @@ export function Restaurante({ nome, onSair }) {
   // ---- cálculos de custo ----
   const insumoMap        = useMemo(()=>{ const m={}; insumos.forEach(i=>m[i.id]=i); return m; },[insumos]);
   const pratoMap         = useMemo(()=>{ const m={}; pratos.forEach(p=>m[p.id]=p); return m; },[pratos]);
-  const custoLinha       = (l) => { const i=insumoMap[l.insumoId]; if(!i)return 0; return ((Number(l.g)||0)/1000)*i.fc*i.preco; };
+  const custoLinha       = (l) => { const i=insumoMap[l.insumoId]; if(!i)return 0; return ((Number(l.g)||0)/fatorUnidade(i.unidade))*i.fc*i.preco; };
   const custoPrato       = (p) => !p?0:p.ficha.reduce((s,l)=>s+custoLinha(l),0);
   const custoPratosLista = (ids) => (ids||[]).reduce((s,id)=>s+custoPrato(pratoMap[id]),0);
 
