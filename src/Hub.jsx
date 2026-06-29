@@ -62,6 +62,7 @@ function Card({ mod, onSelect }) {
 
 export function Hub({ onSelect, nome }) {
   const logo = typeof window !== "undefined" ? window.LOGO : null;
+  React.useEffect(() => { document.title = "Sementes Veneza"; }, []);
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
       <header style={{ background: "rgba(255,255,255,.9)", backdropFilter: "saturate(180%) blur(8px)", WebkitBackdropFilter: "saturate(180%) blur(8px)", borderBottom: "1px solid " + C.line, boxShadow: SH }}>

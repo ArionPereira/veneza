@@ -34,6 +34,7 @@ export function Restaurante({ nome, onSair }) {
   const dadosRef = useRef({}); const nomeRef = useRef(nome); const timerRef = useRef(null);
   useEffect(()=>{ dadosRef.current={insumos,pratos,cardapio,tiposRefeicao,previstoPadrao,estoque,ceasa}; },[insumos,pratos,cardapio,tiposRefeicao,previstoPadrao,estoque,ceasa]);
   useEffect(()=>{ nomeRef.current=nome; },[nome]);
+  useEffect(()=>{ document.title="Refeitório · Sementes Veneza"; return ()=>{ document.title="Sementes Veneza"; }; },[]);
 
   const aplicar = (e) => {
     setInsumos(e.insumos||[]);

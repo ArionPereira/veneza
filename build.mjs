@@ -55,12 +55,12 @@ const html = `<!doctype html>
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>Refeitório · Sementes Veneza</title>
+<title>Sementes Veneza</title>
 <link rel="manifest" href="manifest.webmanifest" />
 <meta name="theme-color" content="#004D94" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-<meta name="apple-mobile-web-app-title" content="Refeitório" />
+<meta name="apple-mobile-web-app-title" content="Veneza" />
 <link rel="apple-touch-icon" href="icon-192.png" />
 <link rel="icon" href="icon-192.png" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />

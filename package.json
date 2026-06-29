@@ -1,9 +1,9 @@
 {
-  "name": "refeitorio-veneza",
+  "name": "veneza",
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "App de cardápio/refeitório da Sementes Veneza (React + Supabase, single-file PWA)",
+  "description": "Hub de aplicativos da Sementes Veneza — central de módulos (Restaurante e outros), React + Supabase, single-file PWA",
   "scripts": {
     "build": "node build.mjs"
   },
