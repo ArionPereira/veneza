@@ -3,11 +3,26 @@ const { useState, useEffect, useCallback } = React;
 import { C, SH, SH2, SERIF } from "../../constants.js";
 import { STATUS, TIPOS, FOTO_TIPOS, ORDEM_STATUS, statusLabel, statusCor, tipoLabel, tipoCor, critCor, fmtDataHora } from "./pcmconst.js";
 import { addOrdem, mudarStatus, fecharOrdem, cancelarOrdem, listFotos, addFoto, removeFoto, uploadFoto, listHistorico, registrarHistorico } from "./pcmdb.js";
+import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors, useDraggable, useDroppable } from "@dnd-kit/core";
 
 // reversão = sair de terminal (concluída/cancelada) ou voltar no fluxo principal
 const ehReversao = (de, para) =>
   (de==="concluida" || de==="cancelada") ||
   (ORDEM_STATUS[para]!=null && ORDEM_STATUS[de]!=null && ORDEM_STATUS[para] < ORDEM_STATUS[de]);
+
+const msgReversao = (de, para) =>
+  de==="concluida" ? "Reabrir esta OS? A conclusão será desfeita (causa raiz, solução e tempo são preservados)." :
+  de==="cancelada" ? "Reativar esta OS cancelada?" :
+  'Voltar a OS para "'+statusLabel(para)+'"? Tem certeza?';
+
+// aplica a transição p/ status não-terminal (concluir/cancelar têm forma própria)
+async function transicionar(os, para, usuario) {
+  const extra = {};
+  if (para==="executando" && !os.iniciada_em) extra.iniciada_em = new Date().toISOString();
+  if (os.status==="concluida" && para!=="concluida") extra.concluida_em = null;
+  await mudarStatus(os.id, para, extra);
+  await registrarHistorico({ os_id:os.id, de_status:os.status, para_status:para, usuario_id:usuario?.id||null, usuario_nome:usuario?.nome||null });
+}
 
 const fotoLabel = (id) => (FOTO_TIPOS.find(t=>t.id===id)||{}).label || id;
 // nome do usuário pela FK, caindo no texto legado (solicitante) p/ OS antigas
@@ -96,9 +111,9 @@ export function FormOS({ setores, equipamentos, usuario, equipPre, onFechar, onS
 // Detalhe da OS: avançar status, concluir (causa raiz/solução/tempo),
 // cancelar (motivo) e fotos.
 // ---------------------------------------------------------------------------
-export function OSDetalhe({ os, equip, setor, usuario, usuarios, recarregar, onFechar }) {
+export function OSDetalhe({ os, equip, setor, usuario, usuarios, recarregar, onFechar, modoInicial=null }) {
   const [fotos,    setFotos]    = useState([]);
-  const [modo,     setModo]     = useState(null); // null | "concluir" | "cancelar"
+  const [modo,     setModo]     = useState(modoInicial); // null | "concluir" | "cancelar"
   // prefill com o que já houver (preservado ao reabrir uma OS concluída)
   const [causa,    setCausa]    = useState(os.causa_raiz || "");
   const [solucao,  setSolucao]  = useState(os.solucao || "");
@@ -119,19 +134,9 @@ export function OSDetalhe({ os, equip, setor, usuario, usuarios, recarregar, onF
   // mover para um status NÃO-terminal (concluir/cancelar têm forma própria)
   const mover = async (para) => {
     if (para === os.status) return;
-    if (ehReversao(os.status, para)) {
-      const msg = os.status==="concluida"
-        ? "Reabrir esta OS? A conclusão será desfeita (causa raiz, solução e tempo são preservados para o próximo fechamento)."
-        : os.status==="cancelada"
-          ? "Reativar esta OS cancelada?"
-          : 'Voltar a OS para "'+statusLabel(para)+'"? Tem certeza?';
-      if (!window.confirm(msg)) return;
-    }
-    const extra = {};
-    if (para==="executando" && !os.iniciada_em) extra.iniciada_em = new Date().toISOString();
-    if (os.status==="concluida" && para!=="concluida") extra.concluida_em = null; // reabrir: limpa data, preserva causa/solução/tempo
+    if (ehReversao(os.status, para) && !window.confirm(msgReversao(os.status, para))) return;
     setErro("");
-    try { await mudarStatus(os.id, para, extra); await registrar(os.status, para); await recarregar(); await carregarHist(); }
+    try { await transicionar(os, para, usuario); await recarregar(); await carregarHist(); }
     catch(err){ setErro(String(err.message||err)); }
   };
 
@@ -299,7 +304,28 @@ export function OSDetalhe({ os, equip, setor, usuario, usuarios, recarregar, onF
 }
 
 // ---------------------------------------------------------------------------
-// Ordens (exportado) — board Kanban
+// Drag-and-drop (coluna soltável + cartão arrastável)
+// ---------------------------------------------------------------------------
+function ColunaSoltavel({ id, children }) {
+  const { setNodeRef, isOver } = useDroppable({ id });
+  return (
+    <div ref={setNodeRef} style={{flex:"0 0 232px",minWidth:232,background:isOver?C.sage:C.paper,border:"1px solid "+(isOver?C.brand2:C.line),borderRadius:12,padding:"8px 8px 10px",transition:"background .12s,border-color .12s"}}>
+      {children}
+    </div>
+  );
+}
+function CartaoArrastavel({ id, onClick, children }) {
+  const { setNodeRef, listeners, attributes, isDragging } = useDraggable({ id });
+  return (
+    <div ref={setNodeRef} {...listeners} {...attributes} onClick={onClick}
+      style={{opacity:isDragging?0.35:1,touchAction:"none",cursor:"grab"}}>
+      {children}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Ordens (exportado) — board Kanban com drag-and-drop
 // ---------------------------------------------------------------------------
 export function Ordens({ setores, equipamentos, ordens, usuario, usuarios, recarregar }) {
   const [form,  setForm]  = useState(false);
@@ -310,11 +336,14 @@ export function Ordens({ setores, equipamentos, ordens, usuario, usuarios, recar
   const sel = ordens.find(o=>o.id===selId) || null;
   const selEquip = sel ? equipMap[sel.equipamento_id] : null;
 
-  const Card = (o) => {
+  const [modoDetalhe, setModoDetalhe] = useState(null);
+  const [arrastando,  setArrastando]  = useState(null);
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
+
+  const CardVisual = (o) => {
     const e = equipMap[o.equipamento_id];
     return (
-      <button key={o.id} onClick={()=>setSelId(o.id)}
-        style={{display:"block",width:"100%",textAlign:"left",background:C.card,border:"1px solid "+C.line,borderLeft:"3px solid "+tipoCor(o.tipo),borderRadius:9,padding:"9px 10px",cursor:"pointer",boxShadow:SH}}>
+      <div style={{background:C.card,border:"1px solid "+C.line,borderLeft:"3px solid "+tipoCor(o.tipo),borderRadius:9,padding:"9px 10px",boxShadow:SH}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:6}}>
           <span style={{fontFamily:SERIF,fontSize:12.5,color:C.brand,fontWeight:700}}>{o.numero||"—"}</span>
           <Pill texto={tipoLabel(o.tipo)} cor={tipoCor(o.tipo)}/>
@@ -325,11 +354,23 @@ export function Ordens({ setores, equipamentos, ordens, usuario, usuarios, recar
           <span style={{whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{e?e.tag:"—"}</span>
           <span style={{marginLeft:"auto",flex:"0 0 auto"}}>{dataCurta(o.aberta_em)}</span>
         </div>
-      </button>
+      </div>
     );
   };
 
+  const handleDragEnd = async ({ active, over }) => {
+    setArrastando(null);
+    if (!over) return;
+    const os = ordens.find(o=>o.id===active.id); const para = over.id;
+    if (!os || os.status===para) return;
+    if (para==="concluida") { setModoDetalhe("concluir"); setSelId(os.id); return; } // soltar em Concluída abre o fechamento
+    if (para==="cancelada") { setModoDetalhe("cancelar"); setSelId(os.id); return; }
+    if (ehReversao(os.status, para) && !window.confirm(msgReversao(os.status, para))) return;
+    try { await transicionar(os, para, usuario); await recarregar(); } catch(e){}
+  };
+
   const semEquip = equipamentos.length===0;
+  const arrastandoOS = arrastando ? ordens.find(o=>o.id===arrastando) : null;
 
   return (<>
     <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap",marginTop:14}}>
@@ -338,29 +379,34 @@ export function Ordens({ setores, equipamentos, ordens, usuario, usuarios, recar
         + Abrir OS
       </button>
       {semEquip && <span style={{fontSize:13,color:C.muted}}>Cadastre um equipamento primeiro (aba Equipamentos).</span>}
-      <span style={{marginLeft:"auto",fontSize:12.5,color:C.muted}}>{ordens.length} OS no total</span>
+      <span style={{marginLeft:"auto",fontSize:12.5,color:C.muted}}>{ordens.length} OS · arraste os cards entre as colunas</span>
     </div>
 
-    <div style={{display:"flex",gap:12,overflowX:"auto",WebkitOverflowScrolling:"touch",paddingBottom:8,marginTop:16}}>
-      {STATUS.map(col=>{
-        const itens = ordens.filter(o=>o.status===col.id);
-        return (
-          <div key={col.id} style={{flex:"0 0 232px",minWidth:232,background:C.paper,border:"1px solid "+C.line,borderRadius:12,padding:"8px 8px 10px"}}>
-            <div style={{display:"flex",alignItems:"center",gap:6,padding:"4px 4px 8px"}}>
-              <span style={{width:9,height:9,borderRadius:"50%",background:col.cor,flex:"0 0 auto"}}/>
-              <span style={{fontSize:12.5,fontWeight:700,color:C.ink}}>{col.label}</span>
-              <span style={{marginLeft:"auto",fontSize:11.5,color:C.muted,background:C.card,border:"1px solid "+C.line,borderRadius:20,padding:"0 7px"}}>{itens.length}</span>
-            </div>
-            <div style={{display:"flex",flexDirection:"column",gap:8}}>
-              {itens.map(Card)}
-              {itens.length===0 && <div style={{fontSize:11.5,color:C.muted,textAlign:"center",padding:"10px 0"}}>—</div>}
-            </div>
-          </div>
-        );
-      })}
-    </div>
+    <DndContext sensors={sensors} onDragStart={({active})=>setArrastando(active.id)} onDragCancel={()=>setArrastando(null)} onDragEnd={handleDragEnd}>
+      <div style={{display:"flex",gap:12,overflowX:"auto",WebkitOverflowScrolling:"touch",paddingBottom:8,marginTop:16}}>
+        {STATUS.map(col=>{
+          const itens = ordens.filter(o=>o.status===col.id);
+          return (
+            <ColunaSoltavel key={col.id} id={col.id}>
+              <div style={{display:"flex",alignItems:"center",gap:6,padding:"4px 4px 8px"}}>
+                <span style={{width:9,height:9,borderRadius:"50%",background:col.cor,flex:"0 0 auto"}}/>
+                <span style={{fontSize:12.5,fontWeight:700,color:C.ink}}>{col.label}</span>
+                <span style={{marginLeft:"auto",fontSize:11.5,color:C.muted,background:C.card,border:"1px solid "+C.line,borderRadius:20,padding:"0 7px"}}>{itens.length}</span>
+              </div>
+              <div style={{display:"flex",flexDirection:"column",gap:8,minHeight:30}}>
+                {itens.map(o=>(
+                  <CartaoArrastavel key={o.id} id={o.id} onClick={()=>setSelId(o.id)}>{CardVisual(o)}</CartaoArrastavel>
+                ))}
+                {itens.length===0 && <div style={{fontSize:11.5,color:C.muted,textAlign:"center",padding:"10px 0"}}>—</div>}
+              </div>
+            </ColunaSoltavel>
+          );
+        })}
+      </div>
+      <DragOverlay>{arrastandoOS ? <div style={{cursor:"grabbing"}}>{CardVisual(arrastandoOS)}</div> : null}</DragOverlay>
+    </DndContext>
 
     {form && <FormOS setores={setores} equipamentos={equipamentos} usuario={usuario} onFechar={()=>setForm(false)} onSalvo={recarregar}/>}
-    {sel && <OSDetalhe os={sel} equip={selEquip} setor={selEquip?setorMap[selEquip.setor_id]:null} usuario={usuario} usuarios={usuarios} recarregar={recarregar} onFechar={()=>setSelId(null)}/>}
+    {sel && <OSDetalhe key={sel.id} os={sel} equip={selEquip} setor={selEquip?setorMap[selEquip.setor_id]:null} usuario={usuario} usuarios={usuarios} recarregar={recarregar} modoInicial={modoDetalhe} onFechar={()=>{ setSelId(null); setModoDetalhe(null); }}/>}
   </>);
 }
