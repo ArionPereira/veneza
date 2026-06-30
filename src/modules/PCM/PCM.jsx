@@ -1,22 +1,12 @@
 import React from "react";
 const { useState, useEffect, useRef, useCallback } = React;
-import { C, SH, SERIF } from "../../constants.js";
+import { C } from "../../constants.js";
 import { Header, Centro } from "../../ui.jsx";
 import { listSetores, listEquipamentos, listOrdens, assinarPCM } from "./pcmdb.js";
 import { Equipamentos } from "./Equipamentos.jsx";
+import { Ordens } from "./Ordens.jsx";
 
 const TABS = [["ordens","Ordens"],["equipamentos","Equipamentos"]];
-
-// Placeholder visual usado nas abas até a etapa que as implementa
-function EmBreve({titulo, etapa, children}) {
-  return (
-    <div style={{background:C.card,border:"1px dashed "+C.brand2,borderRadius:14,padding:"28px 22px",marginTop:14,textAlign:"center"}}>
-      <div style={{fontFamily:SERIF,fontSize:18,color:C.brand,marginBottom:6}}>{titulo}</div>
-      <div style={{fontSize:13.5,color:C.muted}}>Chega na <b>Etapa {etapa}</b>.</div>
-      {children && <div style={{marginTop:12}}>{children}</div>}
-    </div>
-  );
-}
 
 export function PCM({ nome, onSair }) {
   const [setores,      setSetores]      = useState([]);
@@ -58,16 +48,14 @@ export function PCM({ nome, onSair }) {
 
       <main style={{maxWidth:1080,margin:"0 auto",padding:"0 20px"}}>
         {tab==="ordens" && (
-          <EmBreve titulo="Fila de ordens de serviço (board + tabela)" etapa="3">
-            <span style={{fontSize:13,color:C.muted}}>{ordens.length} OS no banco.</span>
-          </EmBreve>
+          <Ordens setores={setores} equipamentos={equipamentos} ordens={ordens} recarregar={recarregar} nome={nome}/>
         )}
         {tab==="equipamentos" && (
           <Equipamentos setores={setores} equipamentos={equipamentos} recarregar={recarregar}/>
         )}
 
-        <p style={{fontSize:12,color:C.muted,textAlign:"center",marginTop:20}}>
-          Fundação pronta (Etapa 1): dados e realtime ligados. Conectado ao Supabase como <b>{nome}</b>.
+        <p style={{fontSize:12,color:C.muted,textAlign:"center",marginTop:24}}>
+          Conectado como <b>{nome}</b>.
         </p>
       </main>
     </div>

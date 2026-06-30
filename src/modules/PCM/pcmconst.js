@@ -23,11 +23,11 @@ export const FLUXO = {
 };
 
 export const TIPOS = [
-  { id:"preventiva",  label:"Preventiva" },
-  { id:"corretiva",   label:"Corretiva" },
-  { id:"emergencial", label:"Emergencial" },
-  { id:"programada",  label:"Programada" },
-  { id:"melhoria",    label:"Melhoria" },
+  { id:"preventiva",  label:"Preventiva",  cor:C.green },
+  { id:"corretiva",   label:"Corretiva",   cor:"#B07D10" },
+  { id:"emergencial", label:"Emergencial", cor:C.clay },
+  { id:"programada",  label:"Programada",  cor:C.brand2 },
+  { id:"melhoria",    label:"Melhoria",    cor:"#6A7682" },
 ];
 
 export const CRITICIDADE = [
@@ -48,5 +48,6 @@ const acha = (arr,id) => arr.find(x=>x.id===id) || {};
 export const statusLabel = (id) => acha(STATUS,id).label || id;
 export const statusCor   = (id) => acha(STATUS,id).cor   || "#6A7682";
 export const tipoLabel   = (id) => acha(TIPOS,id).label  || id;
+export const tipoCor     = (id) => acha(TIPOS,id).cor    || "#6A7682";
 export const critLabel   = (id) => acha(CRITICIDADE,id).label || id;
 export const critCor     = (id) => acha(CRITICIDADE,id).cor   || "#6A7682";
