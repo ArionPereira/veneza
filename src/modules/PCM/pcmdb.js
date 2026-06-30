@@ -35,8 +35,8 @@ export const addOrdem          = (obj)     => ok(sb.from("pcm_ordens").insert(ob
 export const updateOrdem       = (id, patch)=> ok(sb.from("pcm_ordens").update(patch).eq("id", id).select().single());
 
 // fecha a OS (a trava de causa raiz/solução/tempo também existe no banco)
-export const fecharOrdem = (id, { causa_raiz, solucao, tempo_parada_min }) =>
-  updateOrdem(id, { status:"concluida", concluida_em:new Date().toISOString(), causa_raiz, solucao, tempo_parada_min });
+export const fecharOrdem = (id, { causa_raiz, solucao, tempo_parada_min, executante_id }) =>
+  updateOrdem(id, { status:"concluida", concluida_em:new Date().toISOString(), causa_raiz, solucao, tempo_parada_min, executante_id:executante_id||null });
 
 export const cancelarOrdem = (id, motivo_cancelamento) =>
   updateOrdem(id, { status:"cancelada", motivo_cancelamento });

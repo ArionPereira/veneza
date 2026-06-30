@@ -172,7 +172,7 @@ function PainelSetores({ setores, equipamentos, recarregar }) {
 // ---------------------------------------------------------------------------
 // Ficha do equipamento
 // ---------------------------------------------------------------------------
-function Ficha({ equip, setores, equipamentos, ordens, recarregar, nome, onVoltar, onEditar, onRemovido }) {
+function Ficha({ equip, setores, equipamentos, ordens, usuario, usuarios, recarregar, onVoltar, onEditar, onRemovido }) {
   const [osSel, setOsSel] = useState(null);
   const [abrir, setAbrir] = useState(false);
   const setor = setores.find(s=>s.id===equip.setor_id);
@@ -234,8 +234,8 @@ function Ficha({ equip, setores, equipamentos, ordens, recarregar, nome, onVolta
         </div>
       </div>
 
-      {abrir && <FormOS setores={setores} equipamentos={equipamentos} nome={nome} equipPre={equip.id} onFechar={()=>setAbrir(false)} onSalvo={recarregar}/>}
-      {osAberta && <OSDetalhe os={osAberta} equip={equip} setor={setor} recarregar={recarregar} onFechar={()=>setOsSel(null)}/>}
+      {abrir && <FormOS setores={setores} equipamentos={equipamentos} usuario={usuario} equipPre={equip.id} onFechar={()=>setAbrir(false)} onSalvo={recarregar}/>}
+      {osAberta && <OSDetalhe os={osAberta} equip={equip} setor={setor} usuario={usuario} usuarios={usuarios} recarregar={recarregar} onFechar={()=>setOsSel(null)}/>}
     </div>
   );
 }
@@ -243,7 +243,7 @@ function Ficha({ equip, setores, equipamentos, ordens, recarregar, nome, onVolta
 // ---------------------------------------------------------------------------
 // Equipamentos (exportado)
 // ---------------------------------------------------------------------------
-export function Equipamentos({ setores, equipamentos, ordens, recarregar, nome }) {
+export function Equipamentos({ setores, equipamentos, ordens, usuario, usuarios, recarregar }) {
   const [busca,    setBusca]    = useState("");
   const [sel,      setSel]      = useState(null);   // id do equipamento na ficha
   const [form,     setForm]     = useState(null);   // null | {equip} | {equip:undefined} (novo)
@@ -252,7 +252,7 @@ export function Equipamentos({ setores, equipamentos, ordens, recarregar, nome }
   const selecionado = equipamentos.find(e=>e.id===sel);
   if (sel && selecionado) {
     return (<>
-      <Ficha equip={selecionado} setores={setores} equipamentos={equipamentos} ordens={ordens} recarregar={recarregar} nome={nome}
+      <Ficha equip={selecionado} setores={setores} equipamentos={equipamentos} ordens={ordens} usuario={usuario} usuarios={usuarios} recarregar={recarregar}
         onVoltar={()=>setSel(null)} onEditar={()=>setForm({ equip:selecionado })}
         onRemovido={async ()=>{ setSel(null); await recarregar(); }}/>
       {form && <FormEquip setores={setores} equip={form.equip} onFechar={()=>setForm(null)} onSalvo={recarregar}/>}

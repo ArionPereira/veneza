@@ -58,10 +58,10 @@ export function PCM({ onSair }) {
 
       <main style={{maxWidth:1080,margin:"0 auto",padding:"0 20px"}}>
         {tab==="ordens" && (
-          <Ordens setores={setores} equipamentos={equipamentos} ordens={ordens} recarregar={recarregar} nome={usuario.nome}/>
+          <Ordens setores={setores} equipamentos={equipamentos} ordens={ordens} usuario={usuario} usuarios={usuarios} recarregar={recarregar}/>
         )}
         {tab==="equipamentos" && (
-          <Equipamentos setores={setores} equipamentos={equipamentos} ordens={ordens} recarregar={recarregar} nome={usuario.nome}/>
+          <Equipamentos setores={setores} equipamentos={equipamentos} ordens={ordens} usuario={usuario} usuarios={usuarios} recarregar={recarregar}/>
         )}
 
         <p style={{fontSize:12,color:C.muted,textAlign:"center",marginTop:24}}>

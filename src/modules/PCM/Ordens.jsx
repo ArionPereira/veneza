@@ -5,6 +5,8 @@ import { STATUS, FLUXO, TIPOS, FOTO_TIPOS, statusLabel, statusCor, tipoLabel, ti
 import { addOrdem, mudarStatus, fecharOrdem, cancelarOrdem, listFotos, addFoto, removeFoto, uploadFoto } from "./pcmdb.js";
 
 const fotoLabel = (id) => (FOTO_TIPOS.find(t=>t.id===id)||{}).label || id;
+// nome do usuário pela FK, caindo no texto legado (solicitante) p/ OS antigas
+const nomeUsuario = (id, usuarios) => { const u=(usuarios||[]).find(x=>x.id===id); return u?u.nome:null; };
 
 const inp = { border:"1px solid "+C.line, borderRadius:8, padding:"9px 11px", fontSize:14, background:C.paper, color:C.ink, width:"100%" };
 const lab = { fontSize:12, color:C.muted, fontWeight:600, margin:"10px 0 4px" };
@@ -18,12 +20,11 @@ function Pill({ texto, cor }) {
 // ---------------------------------------------------------------------------
 // Abrir OS (modal)
 // ---------------------------------------------------------------------------
-export function FormOS({ setores, equipamentos, nome, equipPre, onFechar, onSalvo }) {
+export function FormOS({ setores, equipamentos, usuario, equipPre, onFechar, onSalvo }) {
   const [equipId, setEquipId] = useState(equipPre || "");
   const [tipo,    setTipo]    = useState("corretiva");
   const [titulo,  setTitulo]  = useState("");
   const [descr,   setDescr]   = useState("");
-  const [solic,   setSolic]   = useState(nome || "");
   const [salvando,setSalvando]= useState(false);
   const [erro,    setErro]    = useState("");
 
@@ -35,7 +36,7 @@ export function FormOS({ setores, equipamentos, nome, equipPre, onFechar, onSalv
     if (!titulo.trim()) { setErro("Informe um título."); return; }
     setErro(""); setSalvando(true);
     try {
-      await addOrdem({ equipamento_id:equipId, tipo, titulo:titulo.trim(), descricao:descr.trim()||null, solicitante:solic.trim()||null, status:"aberta" });
+      await addOrdem({ equipamento_id:equipId, tipo, titulo:titulo.trim(), descricao:descr.trim()||null, status:"aberta", aberta_por_id:usuario?.id||null });
       await onSalvo(); onFechar();
     } catch(err){ setErro(String(err.message||err)); setSalvando(false); }
   };
@@ -71,8 +72,8 @@ export function FormOS({ setores, equipamentos, nome, equipPre, onFechar, onSalv
         <div style={lab}>Descrição</div>
         <textarea value={descr} onChange={e=>setDescr(e.target.value)} rows={3} placeholder="O que está acontecendo…" style={{...inp,resize:"vertical"}}/>
 
-        <div style={lab}>Solicitante</div>
-        <input value={solic} onChange={e=>setSolic(e.target.value)} style={inp}/>
+        <div style={{...lab,marginBottom:0}}>Aberta por</div>
+        <div style={{fontSize:14,color:C.ink,marginTop:2}}><span aria-hidden>👤</span> <b>{usuario?.nome||"—"}</b>{usuario?.funcao?<span style={{color:C.muted}}> · {usuario.funcao}</span>:null}</div>
 
         {erro && <div style={{marginTop:12,fontSize:13,color:C.clay,background:"#FBEAE3",border:"1px solid "+C.clay,borderRadius:8,padding:"8px 10px"}}>{erro}</div>}
 
@@ -90,7 +91,7 @@ export function FormOS({ setores, equipamentos, nome, equipPre, onFechar, onSalv
 // Detalhe da OS: avançar status, concluir (causa raiz/solução/tempo),
 // cancelar (motivo) e fotos.
 // ---------------------------------------------------------------------------
-export function OSDetalhe({ os, equip, setor, recarregar, onFechar }) {
+export function OSDetalhe({ os, equip, setor, usuario, usuarios, recarregar, onFechar }) {
   const [fotos,    setFotos]    = useState([]);
   const [modo,     setModo]     = useState(null); // null | "concluir" | "cancelar"
   const [causa,    setCausa]    = useState("");
@@ -115,7 +116,7 @@ export function OSDetalhe({ os, equip, setor, recarregar, onFechar }) {
   const concluir = async () => {
     if (!causa.trim() || !solucao.trim() || tempo==="") { setErro("Causa raiz, solução e tempo de parada são obrigatórios."); return; }
     setErro(""); setBusy(true);
-    try { await fecharOrdem(os.id, { causa_raiz:causa.trim(), solucao:solucao.trim(), tempo_parada_min:parseInt(tempo)||0 }); await recarregar(); onFechar(); }
+    try { await fecharOrdem(os.id, { causa_raiz:causa.trim(), solucao:solucao.trim(), tempo_parada_min:parseInt(tempo)||0, executante_id:usuario?.id }); await recarregar(); onFechar(); }
     catch(err){ setErro(String(err.message||err)); setBusy(false); }
   };
   const cancelar = async () => {
@@ -151,7 +152,8 @@ export function OSDetalhe({ os, equip, setor, recarregar, onFechar }) {
         </div>
         <div style={{display:"flex",gap:14,flexWrap:"wrap",marginTop:6,fontSize:12.5,color:C.muted}}>
           <span>Setor: {setor?setor.nome:"—"}</span>
-          <span>Solicitante: {os.solicitante||"—"}</span>
+          <span>Aberta por: {nomeUsuario(os.aberta_por_id, usuarios) || os.solicitante || "—"}</span>
+          {os.executante_id && <span>Executante: {nomeUsuario(os.executante_id, usuarios) || "—"}</span>}
           <span>Aberta: {dataCurta(os.aberta_em)}</span>
           {os.concluida_em && <span>Concluída: {dataCurta(os.concluida_em)}</span>}
         </div>
@@ -251,7 +253,7 @@ export function OSDetalhe({ os, equip, setor, recarregar, onFechar }) {
 // ---------------------------------------------------------------------------
 // Ordens (exportado) — board Kanban
 // ---------------------------------------------------------------------------
-export function Ordens({ setores, equipamentos, ordens, recarregar, nome }) {
+export function Ordens({ setores, equipamentos, ordens, usuario, usuarios, recarregar }) {
   const [form,  setForm]  = useState(false);
   const [selId, setSelId] = useState(null);
 
@@ -310,7 +312,7 @@ export function Ordens({ setores, equipamentos, ordens, recarregar, nome }) {
       })}
     </div>
 
-    {form && <FormOS setores={setores} equipamentos={equipamentos} nome={nome} onFechar={()=>setForm(false)} onSalvo={recarregar}/>}
-    {sel && <OSDetalhe os={sel} equip={selEquip} setor={selEquip?setorMap[selEquip.setor_id]:null} recarregar={recarregar} onFechar={()=>setSelId(null)}/>}
+    {form && <FormOS setores={setores} equipamentos={equipamentos} usuario={usuario} onFechar={()=>setForm(false)} onSalvo={recarregar}/>}
+    {sel && <OSDetalhe os={sel} equip={selEquip} setor={selEquip?setorMap[selEquip.setor_id]:null} usuario={usuario} usuarios={usuarios} recarregar={recarregar} onFechar={()=>setSelId(null)}/>}
   </>);
 }
