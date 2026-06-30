@@ -1,7 +1,7 @@
 import React from "react";
 const { useState, useEffect, useCallback } = React;
 import { C, SH, SH2, SERIF } from "../../constants.js";
-import { STATUS, TIPOS, FOTO_TIPOS, ORDEM_STATUS, statusLabel, statusCor, tipoLabel, tipoCor, critCor, fmtDataHora } from "./pcmconst.js";
+import { STATUS, TIPOS, FOTO_TIPOS, PRIORIDADES, ORDEM_STATUS, statusLabel, statusCor, tipoLabel, tipoCor, prioLabel, prioCor, critCor, fmtDataHora, fmtDataBR, fmtDuracao, difMs } from "./pcmconst.js";
 import { addOrdem, mudarStatus, fecharOrdem, cancelarOrdem, listFotos, addFoto, removeFoto, uploadFoto, listHistorico, registrarHistorico } from "./pcmdb.js";
 import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors, useDraggable, useDroppable } from "@dnd-kit/core";
 
@@ -43,6 +43,8 @@ function Pill({ texto, cor }) {
 export function FormOS({ setores, equipamentos, usuario, equipPre, onFechar, onSalvo }) {
   const [equipId, setEquipId] = useState(equipPre || "");
   const [tipo,    setTipo]    = useState("corretiva");
+  const [prio,    setPrio]    = useState("media");
+  const [planej,  setPlanej]  = useState("");
   const [titulo,  setTitulo]  = useState("");
   const [descr,   setDescr]   = useState("");
   const [salvando,setSalvando]= useState(false);
@@ -56,7 +58,7 @@ export function FormOS({ setores, equipamentos, usuario, equipPre, onFechar, onS
     if (!titulo.trim()) { setErro("Informe um título."); return; }
     setErro(""); setSalvando(true);
     try {
-      await addOrdem({ equipamento_id:equipId, tipo, titulo:titulo.trim(), descricao:descr.trim()||null, status:"aberta", aberta_por_id:usuario?.id||null });
+      await addOrdem({ equipamento_id:equipId, tipo, prioridade:prio, planejada_para:planej||null, titulo:titulo.trim(), descricao:descr.trim()||null, status:"aberta", aberta_por_id:usuario?.id||null });
       await onSalvo(); onFechar();
     } catch(err){ setErro(String(err.message||err)); setSalvando(false); }
   };
@@ -84,6 +86,23 @@ export function FormOS({ setores, equipamentos, usuario, equipPre, onFechar, onS
               style={{border:"1px solid "+(tipo===t.id?t.cor:C.line),background:tipo===t.id?t.cor:C.card,color:tipo===t.id?"#fff":C.muted,
                 borderRadius:20,padding:"6px 12px",fontSize:12.5,fontWeight:600,cursor:"pointer"}}>{t.label}</button>
           ))}
+        </div>
+
+        <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
+          <div style={{flex:"1 1 160px"}}>
+            <div style={lab}>Prioridade</div>
+            <div style={{display:"flex",gap:6}}>
+              {PRIORIDADES.map(pr=>(
+                <button key={pr.id} onClick={()=>setPrio(pr.id)}
+                  style={{flex:"1 1 0",border:"1px solid "+(prio===pr.id?pr.cor:C.line),background:prio===pr.id?pr.cor:C.card,color:prio===pr.id?"#fff":C.muted,
+                    borderRadius:8,padding:"7px 6px",fontSize:12.5,fontWeight:600,cursor:"pointer"}}>{pr.label}</button>
+              ))}
+            </div>
+          </div>
+          <div style={{flex:"1 1 140px"}}>
+            <div style={lab}>Data prevista</div>
+            <input type="date" value={planej} onChange={e=>setPlanej(e.target.value)} style={inp}/>
+          </div>
         </div>
 
         <div style={lab}>Título *</div>
@@ -166,6 +185,11 @@ export function OSDetalhe({ os, equip, setor, usuario, usuarios, recarregar, onF
   const tirarFoto = async (id) => { if (window.confirm("Remover esta foto?")) { await removeFoto(id); await carregarFotos(); } };
 
   const inpD = { border:"1px solid "+C.line, borderRadius:8, padding:"9px 11px", fontSize:14, background:C.paper, color:C.ink, width:"100%" };
+  const leadMs = difMs(os.aberta_em, os.concluida_em);   // lead time (abertura → conclusão)
+  const execMs = difMs(os.iniciada_em, os.concluida_em); // tempo em execução (início → conclusão)
+  const dado = (rot, val) => (
+    <div><span style={{color:C.muted,fontSize:11.5}}>{rot}</span><div style={{color:C.ink}}>{val}</div></div>
+  );
 
   return (
     <div onClick={onFechar} style={{position:"fixed",inset:0,background:"rgba(28,42,54,.5)",zIndex:100,display:"flex",alignItems:"flex-start",justifyContent:"center",padding:"24px 16px",overflowY:"auto"}}>
@@ -174,6 +198,7 @@ export function OSDetalhe({ os, equip, setor, usuario, usuarios, recarregar, onF
           <span style={{fontFamily:SERIF,fontSize:19,color:C.brand}}>OS {os.numero||"—"}</span>
           <Pill texto={tipoLabel(os.tipo)} cor={tipoCor(os.tipo)}/>
           <Pill texto={statusLabel(os.status)} cor={statusCor(os.status)}/>
+          <Pill texto={"⚑ "+prioLabel(os.prioridade||"media")} cor={prioCor(os.prioridade||"media")}/>
         </div>
         <div style={{fontSize:15,color:C.ink,fontWeight:600,marginTop:10}}>{os.titulo}</div>
         {os.descricao && <div style={{fontSize:13.5,color:C.muted,marginTop:4,whiteSpace:"pre-wrap"}}>{os.descricao}</div>}
@@ -185,8 +210,20 @@ export function OSDetalhe({ os, equip, setor, usuario, usuarios, recarregar, onF
           <span>Setor: {setor?setor.nome:"—"}</span>
           <span>Aberta por: {nomeUsuario(os.aberta_por_id, usuarios) || os.solicitante || "—"}</span>
           {os.executante_id && <span>Executante: {nomeUsuario(os.executante_id, usuarios) || "—"}</span>}
-          <span>Aberta: {dataCurta(os.aberta_em)}</span>
-          {os.concluida_em && <span>Concluída: {dataCurta(os.concluida_em)}</span>}
+        </div>
+
+        {/* Datas e tempos */}
+        <div style={{marginTop:12,background:C.paper,border:"1px solid "+C.line,borderRadius:10,padding:"10px 12px"}}>
+          <div style={{fontSize:11,letterSpacing:.5,textTransform:"uppercase",color:C.muted,fontWeight:700,marginBottom:8}}>Datas e tempos</div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:"8px 14px",fontSize:13}}>
+            {dado("Abertura",      fmtDataHora(os.aberta_em))}
+            {dado("Prevista",      fmtDataBR(os.planejada_para))}
+            {dado("Início exec.",  fmtDataHora(os.iniciada_em))}
+            {dado("Conclusão",     fmtDataHora(os.concluida_em))}
+            {dado("Lead time",     fmtDuracao(leadMs))}
+            {dado("Em execução",   fmtDuracao(execMs))}
+            {dado("Máquina parada", os.tempo_parada_min!=null ? os.tempo_parada_min+" min" : "—")}
+          </div>
         </div>
 
         {/* Resolução (quando terminal) */}
@@ -346,7 +383,10 @@ export function Ordens({ setores, equipamentos, ordens, usuario, usuarios, recar
       <div style={{background:C.card,border:"1px solid "+C.line,borderLeft:"3px solid "+tipoCor(o.tipo),borderRadius:9,padding:"9px 10px",boxShadow:SH}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:6}}>
           <span style={{fontFamily:SERIF,fontSize:12.5,color:C.brand,fontWeight:700}}>{o.numero||"—"}</span>
-          <Pill texto={tipoLabel(o.tipo)} cor={tipoCor(o.tipo)}/>
+          <span style={{display:"flex",gap:4,alignItems:"center"}}>
+            {o.prioridade==="alta" && <Pill texto="⚑ Alta" cor={prioCor("alta")}/>}
+            <Pill texto={tipoLabel(o.tipo)} cor={tipoCor(o.tipo)}/>
+          </span>
         </div>
         <div style={{fontSize:13.5,color:C.ink,marginTop:5,lineHeight:1.25}}>{o.titulo}</div>
         <div style={{fontSize:11.5,color:C.muted,marginTop:5,display:"flex",alignItems:"center",gap:5}}>
