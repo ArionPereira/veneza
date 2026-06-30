@@ -4,10 +4,12 @@ const { useState } = React;
 import { ModalNome } from "./ui.jsx";
 import { Hub } from "./Hub.jsx";
 import { Restaurante } from "./modules/Restaurante.jsx";
+import { PCM } from "./modules/PCM/PCM.jsx";
 
 // Registro de módulos renderizáveis do hub.
 const RENDERIZADORES = {
   restaurante: (props) => <Restaurante {...props} />,
+  pcm:         (props) => <PCM {...props} />,
 };
 
 export function App() {

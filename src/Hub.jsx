@@ -11,6 +11,13 @@ export const MODULOS = [
     ativo: true,
   },
   {
+    id: "pcm",
+    nome: "PCM — Manutenção",
+    icone: "🛠️",
+    descricao: "Equipamentos, ordens de serviço e histórico de manutenção da UBS.",
+    ativo: true,
+  },
+  {
     id: "em-breve",
     nome: "Novo módulo",
     icone: "✨",
