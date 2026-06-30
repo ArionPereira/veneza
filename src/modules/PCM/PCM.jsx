@@ -2,7 +2,7 @@ import React from "react";
 const { useState, useEffect, useRef, useCallback } = React;
 import { C } from "../../constants.js";
 import { Header, Centro } from "../../ui.jsx";
-import { listUsuarios, listSetores, listEquipamentos, listOrdens, assinarPCM } from "./pcmdb.js";
+import { listUsuarios, listSetores, listEquipamentos, listComponentes, listOrdens, assinarPCM } from "./pcmdb.js";
 import { SelecaoUsuario } from "./Usuarios.jsx";
 import { Equipamentos } from "./Equipamentos.jsx";
 import { Ordens } from "./Ordens.jsx";
@@ -15,6 +15,7 @@ export function PCM({ onSair }) {
   const [usuarios,     setUsuarios]     = useState([]);
   const [setores,      setSetores]      = useState([]);
   const [equipamentos, setEquipamentos] = useState([]);
+  const [componentes,  setComponentes]  = useState([]);
   const [ordens,       setOrdens]       = useState([]);
   const [loading,      setLoading]      = useState(true);
   const [erro,         setErro]         = useState(null);
@@ -27,8 +28,8 @@ export function PCM({ onSair }) {
 
   const recarregar = useCallback(async () => {
     try {
-      const [u, s, e, o] = await Promise.all([listUsuarios(), listSetores(), listEquipamentos(), listOrdens()]);
-      setUsuarios(u||[]); setSetores(s||[]); setEquipamentos(e||[]); setOrdens(o||[]); setErro(null);
+      const [u, s, e, c, o] = await Promise.all([listUsuarios(), listSetores(), listEquipamentos(), listComponentes(), listOrdens()]);
+      setUsuarios(u||[]); setSetores(s||[]); setEquipamentos(e||[]); setComponentes(c||[]); setOrdens(o||[]); setErro(null);
     } catch (err) { setErro(err.message || String(err)); }
   }, []);
 
@@ -59,13 +60,13 @@ export function PCM({ onSair }) {
 
       <main style={{maxWidth:1080,margin:"0 auto",padding:"0 20px"}}>
         {tab==="ordens" && (
-          <Ordens setores={setores} equipamentos={equipamentos} ordens={ordens} usuario={usuario} usuarios={usuarios} recarregar={recarregar}/>
+          <Ordens setores={setores} equipamentos={equipamentos} componentes={componentes} ordens={ordens} usuario={usuario} usuarios={usuarios} recarregar={recarregar}/>
         )}
         {tab==="equipamentos" && (
-          <Equipamentos setores={setores} equipamentos={equipamentos} ordens={ordens} usuario={usuario} usuarios={usuarios} recarregar={recarregar}/>
+          <Equipamentos setores={setores} equipamentos={equipamentos} componentes={componentes} ordens={ordens} usuario={usuario} usuarios={usuarios} recarregar={recarregar}/>
         )}
         {tab==="relatorios" && (
-          <Relatorios ordens={ordens} equipamentos={equipamentos} setores={setores} usuarios={usuarios}/>
+          <Relatorios ordens={ordens} equipamentos={equipamentos} componentes={componentes} setores={setores} usuarios={usuarios}/>
         )}
 
         <p style={{fontSize:12,color:C.muted,textAlign:"center",marginTop:24}}>

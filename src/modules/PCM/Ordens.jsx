@@ -27,6 +27,7 @@ async function transicionar(os, para, usuario) {
 const fotoLabel = (id) => (FOTO_TIPOS.find(t=>t.id===id)||{}).label || id;
 // nome do usuário pela FK, caindo no texto legado (solicitante) p/ OS antigas
 const nomeUsuario = (id, usuarios) => { const u=(usuarios||[]).find(x=>x.id===id); return u?u.nome:null; };
+const nomeComponente = (id, componentes) => { const c=(componentes||[]).find(x=>x.id===id); return c?c.nome:null; };
 
 const inp = { border:"1px solid "+C.line, borderRadius:8, padding:"9px 11px", fontSize:14, background:C.paper, color:C.ink, width:"100%" };
 const lab = { fontSize:12, color:C.muted, fontWeight:600, margin:"10px 0 4px" };
@@ -40,8 +41,9 @@ function Pill({ texto, cor }) {
 // ---------------------------------------------------------------------------
 // Abrir OS (modal)
 // ---------------------------------------------------------------------------
-export function FormOS({ setores, equipamentos, usuario, equipPre, onFechar, onSalvo }) {
+export function FormOS({ setores, equipamentos, componentes, usuario, equipPre, onFechar, onSalvo }) {
   const [equipId, setEquipId] = useState(equipPre || "");
+  const [compId,  setCompId]  = useState("");
   const [tipo,    setTipo]    = useState("corretiva");
   const [prio,    setPrio]    = useState("media");
   const [planej,  setPlanej]  = useState("");
@@ -52,13 +54,16 @@ export function FormOS({ setores, equipamentos, usuario, equipPre, onFechar, onS
 
   const grupos = setores.map(s=>({ s, itens:equipamentos.filter(e=>e.setor_id===s.id) })).filter(g=>g.itens.length);
   const semSetor = equipamentos.filter(e=>!e.setor_id || !setores.some(s=>s.id===e.setor_id));
+  const compsDoEquip = (componentes||[]).filter(c=>c.equipamento_id===equipId && c.ativo);
+
+  const trocaEquip = (id) => { setEquipId(id); setCompId(""); };
 
   const salvar = async () => {
     if (!equipId)       { setErro("Escolha o equipamento."); return; }
     if (!titulo.trim()) { setErro("Informe um título."); return; }
     setErro(""); setSalvando(true);
     try {
-      await addOrdem({ equipamento_id:equipId, tipo, prioridade:prio, planejada_para:planej||null, titulo:titulo.trim(), descricao:descr.trim()||null, status:"aberta", aberta_por_id:usuario?.id||null });
+      await addOrdem({ equipamento_id:equipId, componente_id:compId||null, tipo, prioridade:prio, planejada_para:planej||null, titulo:titulo.trim(), descricao:descr.trim()||null, status:"aberta", aberta_por_id:usuario?.id||null });
       await onSalvo(); onFechar();
     } catch(err){ setErro(String(err.message||err)); setSalvando(false); }
   };
@@ -69,7 +74,7 @@ export function FormOS({ setores, equipamentos, usuario, equipPre, onFechar, onS
         <div style={{fontFamily:SERIF,fontSize:18,color:C.brand,marginBottom:4}}>Abrir ordem de serviço</div>
 
         <div style={lab}>Equipamento *</div>
-        <select value={equipId} onChange={e=>setEquipId(e.target.value)} style={inp}>
+        <select value={equipId} onChange={e=>trocaEquip(e.target.value)} style={inp}>
           <option value="">— escolha —</option>
           {grupos.map(g=>(
             <optgroup key={g.s.id} label={g.s.nome}>
@@ -78,6 +83,14 @@ export function FormOS({ setores, equipamentos, usuario, equipPre, onFechar, onS
           ))}
           {semSetor.length>0 && <optgroup label="Sem setor">{semSetor.map(e=><option key={e.id} value={e.id}>{e.tag} · {e.nome}</option>)}</optgroup>}
         </select>
+
+        {compsDoEquip.length>0 && (<>
+          <div style={lab}>Componente com defeito (opcional)</div>
+          <select value={compId} onChange={e=>setCompId(e.target.value)} style={inp}>
+            <option value="">— nenhum / não se aplica —</option>
+            {compsDoEquip.map(c=><option key={c.id} value={c.id}>{c.nome}</option>)}
+          </select>
+        </>)}
 
         <div style={lab}>Tipo</div>
         <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
@@ -130,7 +143,7 @@ export function FormOS({ setores, equipamentos, usuario, equipPre, onFechar, onS
 // Detalhe da OS: avançar status, concluir (causa raiz/solução/tempo),
 // cancelar (motivo) e fotos.
 // ---------------------------------------------------------------------------
-export function OSDetalhe({ os, equip, setor, usuario, usuarios, recarregar, onFechar, modoInicial=null }) {
+export function OSDetalhe({ os, equip, setor, usuario, usuarios, componentes, recarregar, onFechar, modoInicial=null }) {
   const [fotos,    setFotos]    = useState([]);
   const [modo,     setModo]     = useState(modoInicial); // null | "concluir" | "cancelar"
   // prefill com o que já houver (preservado ao reabrir uma OS concluída)
@@ -213,6 +226,7 @@ export function OSDetalhe({ os, equip, setor, usuario, usuarios, recarregar, onF
 
         <div style={{display:"flex",gap:14,flexWrap:"wrap",marginTop:14,fontSize:13}}>
           <div><span style={{color:C.muted}}>Equipamento: </span><b style={{color:C.ink}}>{equip?equip.tag+" · "+equip.nome:"—"}</b>{equip && <span style={{marginLeft:6,display:"inline-block",width:16,height:16,borderRadius:4,background:critCor(equip.criticidade),color:"#fff",fontSize:10,fontWeight:700,textAlign:"center",lineHeight:"16px"}}>{equip.criticidade}</span>}</div>
+          {os.componente_id && <div><span style={{color:C.muted}}>Componente: </span><b style={{color:C.ink}}>⚙ {nomeComponente(os.componente_id, componentes)||"—"}</b></div>}
         </div>
         <div style={{display:"flex",gap:14,flexWrap:"wrap",marginTop:6,fontSize:12.5,color:C.muted}}>
           <span>Setor: {setor?setor.nome:"—"}</span>
@@ -362,6 +376,7 @@ export function OSDetalhe({ os, equip, setor, usuario, usuarios, recarregar, onF
           <table style={{width:"100%",borderCollapse:"collapse",fontSize:12,marginBottom:12}}>
             <tbody>
               <tr><td style={{padding:"3px 0",width:"50%"}}><b>Equipamento:</b> {equip?equip.tag+" · "+equip.nome:"—"}</td><td style={{padding:"3px 0"}}><b>Setor:</b> {setor?setor.nome:"—"}</td></tr>
+              {os.componente_id && <tr><td style={{padding:"3px 0"}} colSpan={2}><b>Componente:</b> {nomeComponente(os.componente_id, componentes)||"—"}</td></tr>}
               <tr><td style={{padding:"3px 0"}}><b>Aberta por:</b> {nomeUsuario(os.aberta_por_id,usuarios)||os.solicitante||"—"}</td><td style={{padding:"3px 0"}}><b>Executante:</b> {nomeUsuario(os.executante_id,usuarios)||"—"}</td></tr>
               <tr><td style={{padding:"3px 0"}}><b>Abertura:</b> {fmtDataHora(os.aberta_em)}</td><td style={{padding:"3px 0"}}><b>Prevista:</b> {fmtDataBR(os.planejada_para)}</td></tr>
               <tr><td style={{padding:"3px 0"}}><b>Início:</b> {fmtDataHora(os.iniciada_em)}</td><td style={{padding:"3px 0"}}><b>Conclusão:</b> {fmtDataHora(os.concluida_em)}</td></tr>
@@ -410,7 +425,7 @@ function CartaoArrastavel({ id, onClick, children }) {
 // ---------------------------------------------------------------------------
 // Ordens (exportado) — board Kanban com drag-and-drop
 // ---------------------------------------------------------------------------
-export function Ordens({ setores, equipamentos, ordens, usuario, usuarios, recarregar }) {
+export function Ordens({ setores, equipamentos, componentes, ordens, usuario, usuarios, recarregar }) {
   const [form,  setForm]  = useState(false);
   const [selId, setSelId] = useState(null);
 
@@ -435,6 +450,7 @@ export function Ordens({ setores, equipamentos, ordens, usuario, usuarios, recar
           </span>
         </div>
         <div style={{fontSize:13.5,color:C.ink,marginTop:5,lineHeight:1.25}}>{o.titulo}</div>
+        {o.componente_id && <div style={{fontSize:11.5,color:C.brand2,marginTop:2}}>⚙ {nomeComponente(o.componente_id, componentes)}</div>}
         <div style={{fontSize:11.5,color:C.muted,marginTop:5,display:"flex",alignItems:"center",gap:5}}>
           {e && <span style={{width:14,height:14,borderRadius:4,background:critCor(e.criticidade),color:"#fff",fontSize:9,fontWeight:700,textAlign:"center",lineHeight:"14px",flex:"0 0 auto"}}>{e.criticidade}</span>}
           <span style={{whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{e?e.tag:"—"}</span>
@@ -492,7 +508,7 @@ export function Ordens({ setores, equipamentos, ordens, usuario, usuarios, recar
       <DragOverlay>{arrastandoOS ? <div style={{cursor:"grabbing"}}>{CardVisual(arrastandoOS)}</div> : null}</DragOverlay>
     </DndContext>
 
-    {form && <FormOS setores={setores} equipamentos={equipamentos} usuario={usuario} onFechar={()=>setForm(false)} onSalvo={recarregar}/>}
-    {sel && <OSDetalhe key={sel.id} os={sel} equip={selEquip} setor={selEquip?setorMap[selEquip.setor_id]:null} usuario={usuario} usuarios={usuarios} recarregar={recarregar} modoInicial={modoDetalhe} onFechar={()=>{ setSelId(null); setModoDetalhe(null); }}/>}
+    {form && <FormOS setores={setores} equipamentos={equipamentos} componentes={componentes} usuario={usuario} onFechar={()=>setForm(false)} onSalvo={recarregar}/>}
+    {sel && <OSDetalhe key={sel.id} os={sel} equip={selEquip} setor={selEquip?setorMap[selEquip.setor_id]:null} usuario={usuario} usuarios={usuarios} componentes={componentes} recarregar={recarregar} modoInicial={modoDetalhe} onFechar={()=>{ setSelId(null); setModoDetalhe(null); }}/>}
   </>);
 }

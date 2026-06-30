@@ -5,6 +5,7 @@ import { CRITICIDADE, critCor, critLabel, statusLabel, statusCor, tipoLabel, tip
 import {
   addEquipamento, updateEquipamento, removeEquipamento,
   addSetor, updateSetor, removeSetor, uploadFoto,
+  addComponente, updateComponente,
 } from "./pcmdb.js";
 import { FormOS, OSDetalhe } from "./Ordens.jsx";
 
@@ -172,7 +173,37 @@ function PainelSetores({ setores, equipamentos, recarregar }) {
 // ---------------------------------------------------------------------------
 // Ficha do equipamento
 // ---------------------------------------------------------------------------
-function Ficha({ equip, setores, equipamentos, ordens, usuario, usuarios, recarregar, onVoltar, onEditar, onRemovido }) {
+// Componentes do equipamento (na ficha)
+function PainelComponentes({ equip, componentes, recarregar }) {
+  const [novo, setNovo] = useState("");
+  const comps = (componentes||[]).filter(c=>c.equipamento_id===equip.id)
+    .sort((a,b)=> (a.ativo===b.ativo ? a.nome.localeCompare(b.nome) : (a.ativo?-1:1)));
+  const adicionar = async () => { if(!novo.trim()) return; await addComponente({ equipamento_id:equip.id, nome:novo.trim(), ativo:true }); setNovo(""); await recarregar(); };
+  const renomear  = async (c, nome) => { if(nome.trim() && nome.trim()!==c.nome){ await updateComponente(c.id,{ nome:nome.trim() }); await recarregar(); } };
+  const toggle    = async (c) => { await updateComponente(c.id,{ ativo:!c.ativo }); await recarregar(); };
+
+  return (
+    <div style={{borderTop:"1px solid "+C.line,padding:"14px 18px"}}>
+      <div style={{fontSize:12,letterSpacing:.5,textTransform:"uppercase",color:C.muted,fontWeight:700,marginBottom:10}}>Componentes <span style={{color:C.line}}>·</span> {comps.filter(c=>c.ativo).length}</div>
+      <div style={{display:"flex",flexDirection:"column",gap:8}}>
+        {comps.map(c=>(
+          <div key={c.id} style={{display:"flex",gap:8,alignItems:"center",opacity:c.ativo?1:0.55}}>
+            <input defaultValue={c.nome} onBlur={e=>renomear(c,e.target.value)} style={{...inp,flex:"1 1 auto"}}/>
+            {!c.ativo && <span style={{fontSize:11,color:C.clay,fontWeight:700,whiteSpace:"nowrap"}}>inativo</span>}
+            <button onClick={()=>toggle(c)} style={{background:"transparent",color:c.ativo?C.clay:C.green,border:"1px solid "+(c.ativo?C.clay:C.green),borderRadius:7,padding:"5px 10px",fontSize:12.5,cursor:"pointer",whiteSpace:"nowrap"}}>{c.ativo?"Inativar":"Reativar"}</button>
+          </div>
+        ))}
+        {comps.length===0 && <div style={{fontSize:13,color:C.muted}}>Nenhum componente cadastrado. A OS pode ser aberta só no equipamento.</div>}
+      </div>
+      <div style={{display:"flex",gap:8,marginTop:10}}>
+        <input value={novo} onChange={e=>setNovo(e.target.value)} placeholder="Novo componente (ex.: Correia, Motor, Redutor)…" onKeyDown={e=>{ if(e.key==="Enter") adicionar(); }} style={{...inp,flex:"1 1 auto"}}/>
+        <button onClick={adicionar} style={{background:C.brand,color:"#fff",border:"none",borderRadius:8,padding:"9px 14px",fontSize:13,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap"}}>+ Componente</button>
+      </div>
+    </div>
+  );
+}
+
+function Ficha({ equip, setores, equipamentos, componentes, ordens, usuario, usuarios, recarregar, onVoltar, onEditar, onRemovido }) {
   const [osSel, setOsSel] = useState(null);
   const [abrir, setAbrir] = useState(false);
   const setor = setores.find(s=>s.id===equip.setor_id);
@@ -212,6 +243,7 @@ function Ficha({ equip, setores, equipamentos, ordens, usuario, usuarios, recarr
             </div>
           </div>
         </div>
+        <PainelComponentes equip={equip} componentes={componentes} recarregar={recarregar}/>
         <div style={{borderTop:"1px solid "+C.line,padding:"14px 18px",background:C.paper}}>
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,flexWrap:"wrap",marginBottom:10}}>
             <div style={{fontSize:12,letterSpacing:.5,textTransform:"uppercase",color:C.muted,fontWeight:700}}>Histórico de OS <span style={{color:C.line}}>·</span> {osDoEquip.length}</div>
@@ -234,8 +266,8 @@ function Ficha({ equip, setores, equipamentos, ordens, usuario, usuarios, recarr
         </div>
       </div>
 
-      {abrir && <FormOS setores={setores} equipamentos={equipamentos} usuario={usuario} equipPre={equip.id} onFechar={()=>setAbrir(false)} onSalvo={recarregar}/>}
-      {osAberta && <OSDetalhe os={osAberta} equip={equip} setor={setor} usuario={usuario} usuarios={usuarios} recarregar={recarregar} onFechar={()=>setOsSel(null)}/>}
+      {abrir && <FormOS setores={setores} equipamentos={equipamentos} componentes={componentes} usuario={usuario} equipPre={equip.id} onFechar={()=>setAbrir(false)} onSalvo={recarregar}/>}
+      {osAberta && <OSDetalhe os={osAberta} equip={equip} setor={setor} usuario={usuario} usuarios={usuarios} componentes={componentes} recarregar={recarregar} onFechar={()=>setOsSel(null)}/>}
     </div>
   );
 }
@@ -243,7 +275,7 @@ function Ficha({ equip, setores, equipamentos, ordens, usuario, usuarios, recarr
 // ---------------------------------------------------------------------------
 // Equipamentos (exportado)
 // ---------------------------------------------------------------------------
-export function Equipamentos({ setores, equipamentos, ordens, usuario, usuarios, recarregar }) {
+export function Equipamentos({ setores, equipamentos, componentes, ordens, usuario, usuarios, recarregar }) {
   const [busca,    setBusca]    = useState("");
   const [sel,      setSel]      = useState(null);   // id do equipamento na ficha
   const [form,     setForm]     = useState(null);   // null | {equip} | {equip:undefined} (novo)
@@ -252,7 +284,7 @@ export function Equipamentos({ setores, equipamentos, ordens, usuario, usuarios,
   const selecionado = equipamentos.find(e=>e.id===sel);
   if (sel && selecionado) {
     return (<>
-      <Ficha equip={selecionado} setores={setores} equipamentos={equipamentos} ordens={ordens} usuario={usuario} usuarios={usuarios} recarregar={recarregar}
+      <Ficha equip={selecionado} setores={setores} equipamentos={equipamentos} componentes={componentes} ordens={ordens} usuario={usuario} usuarios={usuarios} recarregar={recarregar}
         onVoltar={()=>setSel(null)} onEditar={()=>setForm({ equip:selecionado })}
         onRemovido={async ()=>{ setSel(null); await recarregar(); }}/>
       {form && <FormEquip setores={setores} equip={form.equip} onFechar={()=>setForm(null)} onSalvo={recarregar}/>}

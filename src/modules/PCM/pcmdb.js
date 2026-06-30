@@ -16,6 +16,11 @@ export const listUsuarios  = ()        => ok(sb.from("pcm_usuarios").select("*")
 export const addUsuario    = (obj)      => ok(sb.from("pcm_usuarios").insert(obj).select().single());
 export const updateUsuario = (id, patch)=> ok(sb.from("pcm_usuarios").update(patch).eq("id", id).select().single());
 
+// ---- Componentes (de equipamento) ----
+export const listComponentes  = ()        => ok(sb.from("pcm_componentes").select("*").order("nome"));
+export const addComponente    = (obj)      => ok(sb.from("pcm_componentes").insert(obj).select().single());
+export const updateComponente = (id, patch)=> ok(sb.from("pcm_componentes").update(patch).eq("id", id).select().single());
+
 // ---- Setores ----
 export const listSetores  = ()        => ok(sb.from("pcm_setores").select("*").order("ordem"));
 export const addSetor     = (nome, ordem=0) => ok(sb.from("pcm_setores").insert({ nome, ordem }).select().single());
@@ -66,7 +71,7 @@ export async function uploadFoto(file, prefixo="os") {
 // ---- Realtime: avisa quando qualquer tabela pcm_ muda ----
 export function assinarPCM(onChange) {
   const ch = sb.channel("pcm-realtime");
-  ["pcm_usuarios","pcm_setores","pcm_equipamentos","pcm_ordens","pcm_os_fotos","pcm_os_status_historico"].forEach(t=>{
+  ["pcm_usuarios","pcm_setores","pcm_equipamentos","pcm_componentes","pcm_ordens","pcm_os_fotos","pcm_os_status_historico"].forEach(t=>{
     ch.on("postgres_changes", { event:"*", schema:"public", table:t }, (payload)=>onChange(t, payload));
   });
   ch.subscribe();
