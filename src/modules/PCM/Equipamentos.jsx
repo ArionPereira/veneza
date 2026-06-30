@@ -1,11 +1,17 @@
 import React from "react";
 const { useState } = React;
 import { C, SH, SH2, SERIF } from "../../constants.js";
-import { CRITICIDADE, critCor, critLabel } from "./pcmconst.js";
+import { CRITICIDADE, critCor, critLabel, statusLabel, statusCor, tipoLabel, tipoCor } from "./pcmconst.js";
 import {
   addEquipamento, updateEquipamento, removeEquipamento,
   addSetor, updateSetor, removeSetor, uploadFoto,
 } from "./pcmdb.js";
+import { FormOS, OSDetalhe } from "./Ordens.jsx";
+
+const dataCurta = (iso) => { try { return new Date(iso).toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"}); } catch(e){ return ""; } };
+function Pill({ texto, cor }) {
+  return <span style={{display:"inline-block",fontSize:10,fontWeight:700,color:"#fff",background:cor,borderRadius:20,padding:"2px 7px",whiteSpace:"nowrap"}}>{texto}</span>;
+}
 
 const inp = { border:"1px solid "+C.line, borderRadius:8, padding:"9px 11px", fontSize:14, background:C.paper, color:C.ink, width:"100%" };
 const lab = { fontSize:12, color:C.muted, fontWeight:600, margin:"10px 0 4px" };
@@ -166,8 +172,12 @@ function PainelSetores({ setores, equipamentos, recarregar }) {
 // ---------------------------------------------------------------------------
 // Ficha do equipamento
 // ---------------------------------------------------------------------------
-function Ficha({ equip, setores, onVoltar, onEditar, onRemovido }) {
+function Ficha({ equip, setores, equipamentos, ordens, recarregar, nome, onVoltar, onEditar, onRemovido }) {
+  const [osSel, setOsSel] = useState(null);
+  const [abrir, setAbrir] = useState(false);
   const setor = setores.find(s=>s.id===equip.setor_id);
+  const osDoEquip = ordens.filter(o=>o.equipamento_id===equip.id);
+  const osAberta = osDoEquip.find(o=>o.id===osSel) || null;
   const dado = (rot, val) => (
     <div style={{flex:"1 1 150px"}}>
       <div style={{fontSize:10.5,letterSpacing:.5,textTransform:"uppercase",color:C.muted,fontWeight:600}}>{rot}</div>
@@ -203,11 +213,29 @@ function Ficha({ equip, setores, onVoltar, onEditar, onRemovido }) {
           </div>
         </div>
         <div style={{borderTop:"1px solid "+C.line,padding:"14px 18px",background:C.paper}}>
-          <div style={{fontSize:12,letterSpacing:.5,textTransform:"uppercase",color:C.muted,fontWeight:700,marginBottom:6}}>Histórico de OS</div>
-          {/* TODO(pcm): lista de OS deste ativo chega na Etapa 4 (abrir/fechar OS) */}
-          <div style={{fontSize:13,color:C.muted}}>O histórico e a abertura de OS deste equipamento chegam nas próximas etapas (Ordens).</div>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,flexWrap:"wrap",marginBottom:10}}>
+            <div style={{fontSize:12,letterSpacing:.5,textTransform:"uppercase",color:C.muted,fontWeight:700}}>Histórico de OS <span style={{color:C.line}}>·</span> {osDoEquip.length}</div>
+            <button onClick={()=>setAbrir(true)} style={{background:C.brand,color:"#fff",border:"none",borderRadius:8,padding:"7px 13px",fontSize:13,fontWeight:600,cursor:"pointer"}}>+ Abrir OS</button>
+          </div>
+          {osDoEquip.length===0
+            ? <div style={{fontSize:13,color:C.muted}}>Nenhuma OS para este equipamento ainda.</div>
+            : <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                {osDoEquip.map(o=>(
+                  <button key={o.id} onClick={()=>setOsSel(o.id)}
+                    style={{display:"flex",alignItems:"center",gap:10,width:"100%",textAlign:"left",background:C.card,border:"1px solid "+C.line,borderRadius:9,padding:"9px 11px",cursor:"pointer"}}>
+                    <span style={{fontFamily:SERIF,fontSize:12.5,color:C.brand,fontWeight:700,flex:"0 0 auto"}}>{o.numero||"—"}</span>
+                    <Pill texto={tipoLabel(o.tipo)} cor={tipoCor(o.tipo)}/>
+                    <span style={{flex:"1 1 auto",fontSize:13.5,color:C.ink,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{o.titulo}</span>
+                    <Pill texto={statusLabel(o.status)} cor={statusCor(o.status)}/>
+                    <span style={{flex:"0 0 auto",fontSize:11.5,color:C.muted}}>{dataCurta(o.concluida_em||o.aberta_em)}</span>
+                  </button>
+                ))}
+              </div>}
         </div>
       </div>
+
+      {abrir && <FormOS setores={setores} equipamentos={equipamentos} nome={nome} equipPre={equip.id} onFechar={()=>setAbrir(false)} onSalvo={recarregar}/>}
+      {osAberta && <OSDetalhe os={osAberta} equip={equip} setor={setor} recarregar={recarregar} onFechar={()=>setOsSel(null)}/>}
     </div>
   );
 }
@@ -215,7 +243,7 @@ function Ficha({ equip, setores, onVoltar, onEditar, onRemovido }) {
 // ---------------------------------------------------------------------------
 // Equipamentos (exportado)
 // ---------------------------------------------------------------------------
-export function Equipamentos({ setores, equipamentos, recarregar }) {
+export function Equipamentos({ setores, equipamentos, ordens, recarregar, nome }) {
   const [busca,    setBusca]    = useState("");
   const [sel,      setSel]      = useState(null);   // id do equipamento na ficha
   const [form,     setForm]     = useState(null);   // null | {equip} | {equip:undefined} (novo)
@@ -224,7 +252,7 @@ export function Equipamentos({ setores, equipamentos, recarregar }) {
   const selecionado = equipamentos.find(e=>e.id===sel);
   if (sel && selecionado) {
     return (<>
-      <Ficha equip={selecionado} setores={setores}
+      <Ficha equip={selecionado} setores={setores} equipamentos={equipamentos} ordens={ordens} recarregar={recarregar} nome={nome}
         onVoltar={()=>setSel(null)} onEditar={()=>setForm({ equip:selecionado })}
         onRemovido={async ()=>{ setSel(null); await recarregar(); }}/>
       {form && <FormEquip setores={setores} equip={form.equip} onFechar={()=>setForm(null)} onSalvo={recarregar}/>}

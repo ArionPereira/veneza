@@ -51,7 +51,7 @@ export function PCM({ nome, onSair }) {
           <Ordens setores={setores} equipamentos={equipamentos} ordens={ordens} recarregar={recarregar} nome={nome}/>
         )}
         {tab==="equipamentos" && (
-          <Equipamentos setores={setores} equipamentos={equipamentos} recarregar={recarregar}/>
+          <Equipamentos setores={setores} equipamentos={equipamentos} ordens={ordens} recarregar={recarregar} nome={nome}/>
         )}
 
         <p style={{fontSize:12,color:C.muted,textAlign:"center",marginTop:24}}>

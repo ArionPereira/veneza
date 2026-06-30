@@ -1,8 +1,10 @@
 import React from "react";
-const { useState } = React;
+const { useState, useEffect, useCallback } = React;
 import { C, SH, SH2, SERIF } from "../../constants.js";
-import { STATUS, FLUXO, TIPOS, statusLabel, statusCor, tipoLabel, tipoCor, critCor } from "./pcmconst.js";
-import { addOrdem, mudarStatus } from "./pcmdb.js";
+import { STATUS, FLUXO, TIPOS, FOTO_TIPOS, statusLabel, statusCor, tipoLabel, tipoCor, critCor } from "./pcmconst.js";
+import { addOrdem, mudarStatus, fecharOrdem, cancelarOrdem, listFotos, addFoto, removeFoto, uploadFoto } from "./pcmdb.js";
+
+const fotoLabel = (id) => (FOTO_TIPOS.find(t=>t.id===id)||{}).label || id;
 
 const inp = { border:"1px solid "+C.line, borderRadius:8, padding:"9px 11px", fontSize:14, background:C.paper, color:C.ink, width:"100%" };
 const lab = { fontSize:12, color:C.muted, fontWeight:600, margin:"10px 0 4px" };
@@ -16,7 +18,7 @@ function Pill({ texto, cor }) {
 // ---------------------------------------------------------------------------
 // Abrir OS (modal)
 // ---------------------------------------------------------------------------
-function FormOS({ setores, equipamentos, nome, equipPre, onFechar, onSalvo }) {
+export function FormOS({ setores, equipamentos, nome, equipPre, onFechar, onSalvo }) {
   const [equipId, setEquipId] = useState(equipPre || "");
   const [tipo,    setTipo]    = useState("corretiva");
   const [titulo,  setTitulo]  = useState("");
@@ -85,12 +87,53 @@ function FormOS({ setores, equipamentos, nome, equipPre, onFechar, onSalvo }) {
 }
 
 // ---------------------------------------------------------------------------
-// Detalhe da OS (Etapa 3: avançar status não-terminal; fechar/cancelar = Etapa 4)
+// Detalhe da OS: avançar status, concluir (causa raiz/solução/tempo),
+// cancelar (motivo) e fotos.
 // ---------------------------------------------------------------------------
-function OSDetalhe({ os, equip, setor, recarregar, onFechar }) {
-  const [erro, setErro] = useState("");
-  const proximos = (FLUXO[os.status]||[]).filter(s=>!ehTerminal(s));
+export function OSDetalhe({ os, equip, setor, recarregar, onFechar }) {
+  const [fotos,    setFotos]    = useState([]);
+  const [modo,     setModo]     = useState(null); // null | "concluir" | "cancelar"
+  const [causa,    setCausa]    = useState("");
+  const [solucao,  setSolucao]  = useState("");
+  const [tempo,    setTempo]    = useState("");
+  const [motivo,   setMotivo]   = useState("");
+  const [fotoTipo, setFotoTipo] = useState("problema");
+  const [enviando, setEnviando] = useState(false);
+  const [busy,     setBusy]     = useState(false);
+  const [erro,     setErro]     = useState("");
+
+  const carregarFotos = useCallback(async ()=>{ try { setFotos(await listFotos(os.id)); } catch(e){} }, [os.id]);
+  useEffect(()=>{ carregarFotos(); }, [carregarFotos]);
+
+  const terminal    = ehTerminal(os.status);
+  const proximos    = (FLUXO[os.status]||[]).filter(s=>!ehTerminal(s));
+  const podeConcluir= (FLUXO[os.status]||[]).includes("concluida");
+  const podeCancelar= (FLUXO[os.status]||[]).includes("cancelada");
+
   const avancar = async (novo) => { setErro(""); try { await mudarStatus(os.id, novo); await recarregar(); } catch(err){ setErro(String(err.message||err)); } };
+
+  const concluir = async () => {
+    if (!causa.trim() || !solucao.trim() || tempo==="") { setErro("Causa raiz, solução e tempo de parada são obrigatórios."); return; }
+    setErro(""); setBusy(true);
+    try { await fecharOrdem(os.id, { causa_raiz:causa.trim(), solucao:solucao.trim(), tempo_parada_min:parseInt(tempo)||0 }); await recarregar(); onFechar(); }
+    catch(err){ setErro(String(err.message||err)); setBusy(false); }
+  };
+  const cancelar = async () => {
+    if (!motivo.trim()) { setErro("Informe o motivo do cancelamento."); return; }
+    setErro(""); setBusy(true);
+    try { await cancelarOrdem(os.id, motivo.trim()); await recarregar(); onFechar(); }
+    catch(err){ setErro(String(err.message||err)); setBusy(false); }
+  };
+  const subirFoto = async (e) => {
+    const f = e.target.files && e.target.files[0]; if(!f) return;
+    setErro(""); setEnviando(true);
+    try { const { url } = await uploadFoto(f, "os"); await addFoto({ os_id:os.id, url, tipo:fotoTipo, legenda:null }); await carregarFotos(); }
+    catch(err){ setErro("Falha ao enviar foto: " + (err.message||err)); }
+    setEnviando(false); if (e.target) e.target.value = "";
+  };
+  const tirarFoto = async (id) => { if (window.confirm("Remover esta foto?")) { await removeFoto(id); await carregarFotos(); } };
+
+  const inpD = { border:"1px solid "+C.line, borderRadius:8, padding:"9px 11px", fontSize:14, background:C.paper, color:C.ink, width:"100%" };
 
   return (
     <div onClick={onFechar} style={{position:"fixed",inset:0,background:"rgba(28,42,54,.5)",zIndex:100,display:"flex",alignItems:"flex-start",justifyContent:"center",padding:"24px 16px",overflowY:"auto"}}>
@@ -110,27 +153,92 @@ function OSDetalhe({ os, equip, setor, recarregar, onFechar }) {
           <span>Setor: {setor?setor.nome:"—"}</span>
           <span>Solicitante: {os.solicitante||"—"}</span>
           <span>Aberta: {dataCurta(os.aberta_em)}</span>
+          {os.concluida_em && <span>Concluída: {dataCurta(os.concluida_em)}</span>}
+        </div>
+
+        {/* Resolução (quando terminal) */}
+        {os.status==="concluida" && (
+          <div style={{marginTop:14,background:C.paper,border:"1px solid "+C.line,borderRadius:10,padding:"10px 12px",fontSize:13}}>
+            <div><b style={{color:C.muted,fontSize:11,textTransform:"uppercase",letterSpacing:.5}}>Causa raiz</b><div style={{color:C.ink,whiteSpace:"pre-wrap"}}>{os.causa_raiz}</div></div>
+            <div style={{marginTop:6}}><b style={{color:C.muted,fontSize:11,textTransform:"uppercase",letterSpacing:.5}}>Solução</b><div style={{color:C.ink,whiteSpace:"pre-wrap"}}>{os.solucao}</div></div>
+            <div style={{marginTop:6,color:C.ink}}>Tempo de máquina parada: <b>{os.tempo_parada_min} min</b></div>
+          </div>
+        )}
+        {os.status==="cancelada" && (
+          <div style={{marginTop:14,background:"#FBEAE3",border:"1px solid "+C.clay,borderRadius:10,padding:"10px 12px",fontSize:13,color:C.ink}}>
+            <b style={{color:C.clay,fontSize:11,textTransform:"uppercase",letterSpacing:.5}}>Motivo do cancelamento</b>
+            <div style={{whiteSpace:"pre-wrap"}}>{os.motivo_cancelamento}</div>
+          </div>
+        )}
+
+        {/* Fotos */}
+        <div style={{borderTop:"1px solid "+C.line,marginTop:16,paddingTop:12}}>
+          <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+            <span style={{fontSize:12,color:C.muted,fontWeight:600}}>Fotos</span>
+            <select value={fotoTipo} onChange={e=>setFotoTipo(e.target.value)} style={{...inpD,width:"auto",padding:"6px 8px",fontSize:12.5}}>
+              {FOTO_TIPOS.map(t=><option key={t.id} value={t.id}>{t.label}</option>)}
+            </select>
+            <label style={{background:C.sage,color:C.brand,border:"1px solid "+C.line,borderRadius:8,padding:"6px 11px",fontSize:12.5,cursor:"pointer",fontWeight:600}}>
+              {enviando?"enviando…":"+ Foto"}
+              <input type="file" accept="image/*" onChange={subirFoto} style={{display:"none"}}/>
+            </label>
+          </div>
+          {fotos.length>0 && (
+            <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:10}}>
+              {fotos.map(f=>(
+                <div key={f.id} style={{position:"relative"}}>
+                  <a href={f.url} target="_blank" rel="noreferrer"><img src={f.url} alt={fotoLabel(f.tipo)} style={{width:74,height:74,objectFit:"cover",borderRadius:8,border:"1px solid "+C.line,display:"block"}}/></a>
+                  <span style={{position:"absolute",left:0,bottom:0,right:0,background:"rgba(28,42,54,.7)",color:"#fff",fontSize:9.5,padding:"1px 4px",borderRadius:"0 0 8px 8px",textAlign:"center"}}>{fotoLabel(f.tipo)}</span>
+                  <button onClick={()=>tirarFoto(f.id)} title="Remover" style={{position:"absolute",top:-6,right:-6,width:18,height:18,borderRadius:"50%",background:C.clay,color:"#fff",border:"none",fontSize:12,lineHeight:1,cursor:"pointer"}}>&times;</button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {erro && <div style={{marginTop:12,fontSize:13,color:C.clay,background:"#FBEAE3",border:"1px solid "+C.clay,borderRadius:8,padding:"8px 10px"}}>{erro}</div>}
 
-        <div style={{borderTop:"1px solid "+C.line,marginTop:16,paddingTop:14}}>
-          {ehTerminal(os.status)
-            ? <div style={{fontSize:13,color:C.muted}}>OS {statusLabel(os.status).toLowerCase()}.</div>
-            : <>
+        {/* Ações */}
+        {!terminal && (
+          <div style={{borderTop:"1px solid "+C.line,marginTop:14,paddingTop:14}}>
+            {modo==="concluir" ? (
+              <>
+                <div style={{fontSize:13,fontWeight:700,color:C.brand,marginBottom:2}}>Concluir OS</div>
+                <div style={lab}>Causa raiz *</div>
+                <textarea value={causa} onChange={e=>setCausa(e.target.value)} rows={2} placeholder="Por que aconteceu" style={{...inpD,resize:"vertical"}}/>
+                <div style={lab}>Solução aplicada *</div>
+                <textarea value={solucao} onChange={e=>setSolucao(e.target.value)} rows={2} placeholder="O que foi feito" style={{...inpD,resize:"vertical"}}/>
+                <div style={lab}>Tempo de máquina parada (min) *</div>
+                <input type="number" min="0" value={tempo} onChange={e=>setTempo(e.target.value)} style={{...inpD,width:140}}/>
+                <div style={{display:"flex",gap:10,marginTop:14}}>
+                  <button onClick={concluir} disabled={busy} style={{background:C.green,color:"#fff",border:"none",borderRadius:8,padding:"9px 16px",fontSize:13.5,fontWeight:600,cursor:busy?"default":"pointer"}}>{busy?"concluindo…":"Confirmar conclusão"}</button>
+                  <button onClick={()=>{ setModo(null); setErro(""); }} style={{background:"transparent",color:C.muted,border:"1px solid "+C.line,borderRadius:8,padding:"9px 14px",fontSize:13,cursor:"pointer"}}>Voltar</button>
+                </div>
+              </>
+            ) : modo==="cancelar" ? (
+              <>
+                <div style={{fontSize:13,fontWeight:700,color:C.clay,marginBottom:2}}>Cancelar OS</div>
+                <div style={lab}>Motivo do cancelamento *</div>
+                <textarea value={motivo} onChange={e=>setMotivo(e.target.value)} rows={2} placeholder="Por que está sendo cancelada" style={{...inpD,resize:"vertical"}}/>
+                <div style={{display:"flex",gap:10,marginTop:14}}>
+                  <button onClick={cancelar} disabled={busy} style={{background:C.clay,color:"#fff",border:"none",borderRadius:8,padding:"9px 16px",fontSize:13.5,fontWeight:600,cursor:busy?"default":"pointer"}}>{busy?"cancelando…":"Confirmar cancelamento"}</button>
+                  <button onClick={()=>{ setModo(null); setErro(""); }} style={{background:"transparent",color:C.muted,border:"1px solid "+C.line,borderRadius:8,padding:"9px 14px",fontSize:13,cursor:"pointer"}}>Voltar</button>
+                </div>
+              </>
+            ) : (
+              <>
                 <div style={{fontSize:12,color:C.muted,fontWeight:600,marginBottom:8}}>Avançar status</div>
                 <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
                   {proximos.map(s=>(
-                    <button key={s} onClick={()=>avancar(s)}
-                      style={{background:statusCor(s),color:"#fff",border:"none",borderRadius:8,padding:"8px 14px",fontSize:13,fontWeight:600,cursor:"pointer"}}>
-                      → {statusLabel(s)}
-                    </button>
+                    <button key={s} onClick={()=>avancar(s)} style={{background:statusCor(s),color:"#fff",border:"none",borderRadius:8,padding:"8px 14px",fontSize:13,fontWeight:600,cursor:"pointer"}}>→ {statusLabel(s)}</button>
                   ))}
+                  {podeConcluir && <button onClick={()=>{ setModo("concluir"); setErro(""); }} style={{background:C.green,color:"#fff",border:"none",borderRadius:8,padding:"8px 14px",fontSize:13,fontWeight:600,cursor:"pointer"}}>✓ Concluir OS</button>}
+                  {podeCancelar && <button onClick={()=>{ setModo("cancelar"); setErro(""); }} style={{background:"transparent",color:C.clay,border:"1px solid "+C.clay,borderRadius:8,padding:"8px 14px",fontSize:13,fontWeight:600,cursor:"pointer"}}>Cancelar OS</button>}
                 </div>
-                {/* TODO(pcm): Concluir e Cancelar (com causa raiz/solução/tempo + fotos) chegam na Etapa 4 */}
-                <div style={{fontSize:11.5,color:C.muted,marginTop:10}}>Concluir e cancelar (com causa raiz, solução, tempo de parada e fotos) chegam na Etapa 4.</div>
-              </>}
-        </div>
+              </>
+            )}
+          </div>
+        )}
 
         <div style={{marginTop:16}}>
           <button onClick={onFechar} style={{background:"transparent",color:C.muted,border:"1px solid "+C.line,borderRadius:8,padding:"9px 16px",fontSize:13,cursor:"pointer"}}>Fechar</button>
