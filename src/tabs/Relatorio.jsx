@@ -1,7 +1,7 @@
 import React from "react";
 const { useState } = React;
-import { C, SH, SERIF, brl, num } from "../constants.js";
-import { NOMES3, MESES, hojeISO, fromISO, iso, addDias, fmtData, wdDe } from "../dates.js";
+import { C, SH, SERIF, CATEGORIAS, brl, num } from "../constants.js";
+import { NOMES, NOMES3, MESES, hojeISO, fromISO, iso, addDias, fmtData, fmtDataLonga, wdDe, pad } from "../dates.js";
 import { SectionTitle, Stat } from "../ui.jsx";
 
 export function Relatorio({cardapio, pratoMap, custoPratosLista, tiposRefeicao}) {
@@ -60,6 +60,45 @@ export function Relatorio({cardapio, pratoMap, custoPratosLista, tiposRefeicao})
     semanas.push({ label:fmtData(iso(seg)), prevAvg:pRef>0?pPrev/pRef:0, realAvg:pRefReal>0?pReal/pRefReal:0, temReal:pRefReal>0 });
   }
   const maxAvg = Math.max(0.01, ...semanas.map(s=>Math.max(s.prevAvg,s.realAvg)));
+
+  // ---- cardápio detalhado do mês (dia → refeição → pratos por categoria) ----
+  const custoPorcao = (id) => custoPratosLista([id]);
+  const dataBR = (dataISO) => { const dt=fromISO(dataISO); return pad(dt.getDate())+"/"+pad(dt.getMonth()+1)+"/"+dt.getFullYear(); };
+  const diasDetalhe = [];
+  for (let d=1; d<=dias; d++) {
+    const dataISO = iso(new Date(ano,mes,d)); const dia = cardapio[dataISO]; if(!dia) continue;
+    const refs = tiposRefeicao.filter(t=>dia[t.id]&&dia[t.id].pratos&&dia[t.id].pratos.length).map(t=>{
+      const m = dia[t.id]; const porCat = {};
+      m.pratos.forEach(id=>{ const p=pratoMap[id]; if(!p) return; (porCat[p.categoria]=porCat[p.categoria]||[]).push(p); });
+      const percap = custoPratosLista(m.pratos);
+      return { rid:t.id, nome:t.nome, previsto:m.previsto||0, realizado:m.realizado, porCat, percap };
+    });
+    if (refs.length) diasDetalhe.push({ dataISO, refs });
+  }
+
+  const baixarCSV = () => {
+    const sep = ";";
+    const esc = (v) => { const s = String(v==null?"":v); return /[";\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s; };
+    const dec = (n) => (Number(n)||0).toFixed(2).replace(".",",");
+    const linhas = [["Data","Dia da semana","Refeição","Categoria","Prato","Custo/porção (R$)","Previstos","Realizados"]];
+    diasDetalhe.forEach(({dataISO,refs})=>{
+      const ds = NOMES[wdDe(dataISO)];
+      refs.forEach(r=>{
+        CATEGORIAS.filter(c=>r.porCat[c]).forEach(cat=>{
+          r.porCat[cat].forEach(p=>{
+            linhas.push([dataBR(dataISO), ds, r.nome, cat, p.nome, dec(custoPorcao(p.id)), r.previsto, r.realizado==null?"":r.realizado]);
+          });
+        });
+      });
+    });
+    const csv = "﻿" + linhas.map(l=>l.map(esc).join(sep)).join("\r\n");
+    const blob = new Blob([csv], { type:"text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = "cardapio-"+MESES[mes].toLowerCase()+"-"+ano+".csv";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 1500);
+  };
 
   return (<>
     <div style={{display:"flex",alignItems:"center",gap:10,marginTop:8,marginBottom:14}}>
@@ -150,5 +189,48 @@ export function Relatorio({cardapio, pratoMap, custoPratosLista, tiposRefeicao})
         </tbody>
       </table>
     </div>
+
+    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,flexWrap:"wrap",marginTop:30,marginBottom:14}}>
+      <h2 style={{fontSize:13,fontWeight:700,letterSpacing:0.8,textTransform:"uppercase",color:C.brand,margin:0,display:"flex",alignItems:"center",gap:8}}>
+        <span style={{width:14,height:2,background:C.accent,borderRadius:2,display:"inline-block"}}></span>
+        Cardápio detalhado do mês
+      </h2>
+      <button onClick={baixarCSV} disabled={!diasDetalhe.length}
+        style={{background:diasDetalhe.length?C.brand:C.line,color:"#fff",border:"none",borderRadius:8,padding:"9px 15px",fontSize:13.5,fontWeight:600,cursor:diasDetalhe.length?"pointer":"default",display:"inline-flex",alignItems:"center",gap:7,whiteSpace:"nowrap"}}>
+        <span aria-hidden>⬇</span> Baixar CSV (Excel)
+      </button>
+    </div>
+    <p style={{fontSize:13,color:C.muted,marginTop:-6}}>Cada dia, suas refeições e todos os pratos que as compõem (com custo por porção). O CSV abre no Excel.</p>
+
+    {diasDetalhe.length===0
+      ? <p style={{fontSize:14,color:C.muted}}>Nenhum cardápio montado em {MESES[mes]}.</p>
+      : <div style={{display:"flex",flexDirection:"column",gap:12,marginTop:12}}>
+          {diasDetalhe.map(({dataISO,refs})=>(
+            <div key={dataISO} style={{background:C.card,border:"1px solid "+C.line,borderRadius:12,overflow:"hidden",boxShadow:SH}}>
+              <div style={{background:C.sage,padding:"9px 14px",fontFamily:SERIF,fontSize:15.5,color:C.brand,borderBottom:"1px solid "+C.line}}>{fmtDataLonga(dataISO)}</div>
+              <div style={{padding:"6px 14px 12px"}}>
+                {refs.map(r=>(
+                  <div key={r.rid} style={{marginTop:10}}>
+                    <div style={{display:"flex",alignItems:"baseline",gap:8,flexWrap:"wrap",marginBottom:4}}>
+                      <span style={{fontSize:13,fontWeight:700,color:C.ink}}>{r.nome}</span>
+                      <span style={{fontSize:12,color:C.muted}}>{num(r.previsto)} prev.{r.realizado!=null?" · "+num(r.realizado)+" real.":""} · {brl(r.percap)}/pessoa</span>
+                    </div>
+                    {CATEGORIAS.filter(c=>r.porCat[c]).map(cat=>(
+                      <div key={cat} style={{marginBottom:3}}>
+                        <div style={{fontSize:10,letterSpacing:1,textTransform:"uppercase",color:C.muted,marginBottom:1}}>{cat}</div>
+                        {r.porCat[cat].map(p=>(
+                          <div key={p.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",fontSize:13.5,padding:"1px 0"}}>
+                            <span>{p.nome}</span>
+                            <span style={{fontSize:12,color:C.muted,fontVariantNumeric:"tabular-nums"}}>{brl(custoPorcao(p.id))}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>}
   </>);
 }

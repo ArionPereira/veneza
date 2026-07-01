@@ -8,7 +8,13 @@ export function Mural({cardapio, pratoMap, tiposRefeicao}) {
   const ativos = tiposRefeicao;
   return (<>
     <SectionTitle>Mural do refeitório — próximos 7 dias</SectionTitle>
-    <p style={{fontSize:13,color:C.muted,marginTop:-6}}>Visão limpa, sem custos — para imprimir ou exibir numa TV.</p>
+    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,flexWrap:"wrap",marginTop:-6}}>
+      <p style={{fontSize:13,color:C.muted,margin:0}}>Visão limpa, sem custos — para imprimir ou exibir numa TV.</p>
+      <button className="no-print" onClick={()=>window.print()} title="Imprimir ou salvar em PDF"
+        style={{background:C.brand,color:"#fff",border:"none",borderRadius:8,padding:"9px 15px",fontSize:13.5,fontWeight:600,cursor:"pointer",display:"inline-flex",alignItems:"center",gap:7,whiteSpace:"nowrap"}}>
+        <span aria-hidden>🖨</span> Imprimir / PDF
+      </button>
+    </div>
     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:14,marginTop:14}}>
       {datas.map(d=>{
         const dia    = cardapio[d]||{};

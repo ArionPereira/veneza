@@ -31,6 +31,20 @@ const CSS = `
   ::-webkit-scrollbar-thumb{background:#C7D2DE;border-radius:8px;border:3px solid transparent;background-clip:content-box}
   ::-webkit-scrollbar-thumb:hover{background:#AEBDCC;background-clip:content-box}
   ::-webkit-scrollbar-track{background:transparent}
+  @media (max-width:640px){
+    main{padding-left:12px!important;padding-right:12px!important}
+  }
+  .pcm-os-print{display:none}
+  @media print{
+    .no-print{display:none!important}
+    body{background:#fff!important}
+    main{padding:0!important;max-width:100%!important}
+    @page{margin:12mm}
+    /* PCM: imprimir só a OS quando o body tem a classe pcm-printing */
+    body.pcm-printing *{visibility:hidden}
+    body.pcm-printing .pcm-os-print, body.pcm-printing .pcm-os-print *{visibility:visible}
+    body.pcm-printing .pcm-os-print{display:block;position:absolute;left:0;top:0;width:100%;padding:0;color:#000}
+  }
 `;
 
 // 1) bundla o entry.jsx em memória
@@ -55,12 +69,12 @@ const html = `<!doctype html>
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>Refeitório · Sementes Veneza</title>
+<title>Sementes Veneza</title>
 <link rel="manifest" href="manifest.webmanifest" />
 <meta name="theme-color" content="#004D94" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-<meta name="apple-mobile-web-app-title" content="Refeitório" />
+<meta name="apple-mobile-web-app-title" content="Veneza" />
 <link rel="apple-touch-icon" href="icon-192.png" />
 <link rel="icon" href="icon-192.png" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />

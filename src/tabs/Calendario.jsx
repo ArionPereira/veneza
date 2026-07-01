@@ -51,7 +51,7 @@ function MealEditor({sel, tipo, dref, pratos, pratoMap, custoPrato, custoPratosL
             <div style={{fontSize:10,letterSpacing:1,textTransform:"uppercase",color:C.muted,marginBottom:2}}>{cat}</div>
             {porCat[cat].map(p=>(
               <div key={p.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",fontSize:14,padding:"2px 0"}}>
-                <span>{p.nome}{p.sazonal && <span style={{marginLeft:6,fontSize:10,color:C.accent2,border:"1px solid "+C.accent,borderRadius:4,padding:"0 4px"}}>sazonal</span>}</span>
+                <span>{p.nome}</span>
                 <span style={{display:"flex",alignItems:"center",gap:6}}>
                   <span style={{fontSize:12,color:C.muted,fontVariantNumeric:"tabular-nums"}}>{brl(custoPrato(p))}</span>
                   <button onClick={()=>removePratoMeal(sel,tipo.id,p.id)}
@@ -66,7 +66,7 @@ function MealEditor({sel, tipo, dref, pratos, pratoMap, custoPrato, custoPratosL
           <option value="">+ adicionar prato...</option>
           {CATEGORIAS.map(cat=>{ const it=disp.filter(p=>p.categoria===cat); if(!it.length) return null; return (
             <optgroup key={cat} label={cat}>
-              {it.map(p=><option key={p.id} value={p.id}>{p.nome}{p.sazonal?" - sazonal":""} - {brl(custoPrato(p))}</option>)}
+              {it.map(p=><option key={p.id} value={p.id}>{p.nome} - {brl(custoPrato(p))}</option>)}
             </optgroup>
           ); })}
         </select>
@@ -232,11 +232,35 @@ function EditorDia({sel, cardapio, tiposRefeicao, pratos, pratoMap, custoPrato, 
 // Calendario (exportado)
 // ---------------------------------------------------------------------------
 
-export function Calendario({cardapio, pratos, pratoMap, custoPrato, custoPratosLista, tiposRefeicao, addPratoMeal, removePratoMeal, ativarRefDia, removerRefDia, setPrevisto, setRealizado, copiarDia, copiarDiaIntervalo, limparDia, copiarSemana, recalcularDia, segDe}) {
+export function Calendario({cardapio, pratos, pratoMap, custoPrato, custoPratosLista, tiposRefeicao, addPratoMeal, removePratoMeal, ativarRefDia, removerRefDia, setPrevisto, setRealizado, copiarDia, copiarDiaIntervalo, limparDia, limparDias, trocarDias, copiarSemana, recalcularDia, segDe}) {
   const hoje = hojeISO(); const ini = fromISO(hoje);
   const [ano, setAno] = useState(ini.getFullYear());
   const [mes, setMes] = useState(ini.getMonth());
   const [sel, setSel] = useState(hoje);
+  const [modo, setModo] = useState(null); // null | "limpar" | "trocar"
+  const [selDias, setSelDias] = useState([]);
+
+  const togDia    = (d) => setSelDias(s=>s.includes(d)?s.filter(x=>x!==d):[...s,d]);
+  const entrarModo= (m) => { setModo(m); setSelDias([]); };
+  const sairModo  = () => { setModo(null); setSelDias([]); };
+
+  const confirmarLimpar = () => {
+    if(!selDias.length) return;
+    const dias = selDias.slice().sort();
+    const temPassado = dias.some(d=>d<hoje);
+    const lista = dias.map(fmtData).join(", ");
+    const msg = (temPassado ? "⚠ ATENÇÃO: há dias que JÁ PASSARAM na seleção (podem estar fechados) — isso altera o histórico.\n\n" : "")
+      + "Limpar TODAS as refeições de " + dias.length + " dia(s)?\n\n" + lista;
+    if (window.confirm(msg)) { limparDias(dias); sairModo(); }
+  };
+  const confirmarTrocar = () => {
+    if(selDias.length!==2) return;
+    const [d1,d2] = selDias.slice().sort();
+    const temPassado = [d1,d2].some(d=>d<hoje);
+    const msg = (temPassado ? "⚠ ATENÇÃO: um dos dias JÁ PASSOU — isso altera o histórico.\n\n" : "")
+      + "Trocar o cardápio entre " + fmtData(d1) + " e " + fmtData(d2) + "?\n\nO que está em cada dia vai para o outro (e vice-versa).";
+    if (window.confirm(msg)) { trocarDias(d1,d2); sairModo(); }
+  };
 
   const primeiro  = new Date(ano,mes,1);
   const inicioWd  = primeiro.getDay();
@@ -261,19 +285,66 @@ export function Calendario({cardapio, pratos, pratoMap, custoPrato, custoPratosL
           <button onClick={()=>navMes(1)} style={{border:"1px solid "+C.line,background:C.card,borderRadius:8,padding:"6px 11px",cursor:"pointer",fontSize:16,color:C.brand}}>&#8250;</button>
           <button onClick={irHoje} style={{border:"1px solid "+C.line,background:C.card,borderRadius:8,padding:"6px 10px",cursor:"pointer",fontSize:12,color:C.muted}}>Hoje</button>
         </div>
+        {!modo && (
+          <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:12}}>
+            <button onClick={()=>entrarModo("trocar")}
+              style={{border:"1px solid "+C.brand2,background:"transparent",color:C.brand,borderRadius:8,padding:"6px 12px",cursor:"pointer",fontSize:12}}>
+              ⇄ Trocar 2 dias
+            </button>
+            <button onClick={()=>entrarModo("limpar")}
+              style={{border:"1px solid "+C.clay,background:"transparent",color:C.clay,borderRadius:8,padding:"6px 12px",cursor:"pointer",fontSize:12}}>
+              Limpar vários dias
+            </button>
+          </div>
+        )}
+        {modo==="limpar" && (
+          <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",marginBottom:12,background:"#FBEAE3",border:"1px solid "+C.clay,borderRadius:8,padding:"8px 10px"}}>
+            <span style={{fontSize:12.5,color:C.clay,fontWeight:600,flex:"1 1 auto"}}>{selDias.length} dia(s) selecionado(s)</span>
+            <button onClick={confirmarLimpar} disabled={!selDias.length}
+              style={{background:selDias.length?C.clay:C.line,color:"#fff",border:"none",borderRadius:8,padding:"7px 13px",fontSize:13,fontWeight:600,cursor:selDias.length?"pointer":"default"}}>
+              Limpar selecionados
+            </button>
+            <button onClick={sairModo}
+              style={{background:"transparent",color:C.muted,border:"1px solid "+C.line,borderRadius:8,padding:"7px 12px",fontSize:13,cursor:"pointer"}}>
+              Cancelar
+            </button>
+          </div>
+        )}
+        {modo==="trocar" && (
+          <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",marginBottom:12,background:C.sage,border:"1px solid "+C.brand2,borderRadius:8,padding:"8px 10px"}}>
+            <span style={{fontSize:12.5,color:C.brand,fontWeight:600,flex:"1 1 auto"}}>{selDias.length} de 2 dias selecionados</span>
+            <button onClick={confirmarTrocar} disabled={selDias.length!==2}
+              style={{background:selDias.length===2?C.brand:C.line,color:"#fff",border:"none",borderRadius:8,padding:"7px 13px",fontSize:13,fontWeight:600,cursor:selDias.length===2?"pointer":"default"}}>
+              ⇄ Trocar
+            </button>
+            <button onClick={sairModo}
+              style={{background:"transparent",color:C.muted,border:"1px solid "+C.line,borderRadius:8,padding:"7px 12px",fontSize:13,cursor:"pointer"}}>
+              Cancelar
+            </button>
+          </div>
+        )}
         <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:5}}>
           {NOMES3.map(n=><div key={n} style={{textAlign:"center",fontSize:10,letterSpacing:1,textTransform:"uppercase",color:C.muted,paddingBottom:2}}>{n}</div>)}
           {celulas.map((d,i)=>{
             const isoD = iso(d); const noMes = d.getMonth()===mes; const ehHoje = isoD===hoje; const selec = isoD===sel;
             const qtd = diaQtd(isoD); const tem = qtd>0;
+            const ativo = !!modo;
+            const marcado = ativo && selDias.includes(isoD);
+            const clicavel = modo==="limpar" ? tem : true; // troca permite qualquer dia (move se um estiver vazio)
+            const corMarca = modo==="trocar" ? C.brand : C.clay;
+            const bgMarca  = modo==="trocar" ? "#CFE2F7" : "#FBEAE3";
+            const ordem = modo==="trocar" ? selDias.indexOf(isoD) : -1;
             return (
-              <button key={i} onClick={()=>setSel(isoD)}
-                style={{textAlign:"left",cursor:"pointer",minHeight:58,padding:"5px 7px",borderRadius:9,
-                  border: selec? "2px solid "+C.brand : (ehHoje? "2px solid "+C.accent : "1px solid "+C.line),
-                  background: selec? C.sage : (tem? C.sage : C.card), opacity: noMes?0.4:1}}>
+              <button key={i} onClick={()=> ativo ? (clicavel && togDia(isoD)) : setSel(isoD)}
+                style={{textAlign:"left",cursor:clicavel?"pointer":"default",minHeight:58,padding:"5px 7px",borderRadius:9,
+                  border: marcado? "2px solid "+corMarca : (selec&&!ativo? "2px solid "+C.brand : (ehHoje? "2px solid "+C.accent : "1px solid "+C.line)),
+                  background: marcado? bgMarca : (selec&&!ativo? C.sage : (tem? C.sage : C.card)),
+                  opacity: noMes?0.4:1}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                   <span style={{fontWeight:ehHoje?700:500,fontSize:13,color:C.ink}}>{d.getDate()}</span>
-                  {tem && diaCongelado(isoD) && <span title="Custo congelado (realizado lançado)" style={{fontSize:11,color:C.brand2}}>❄</span>}
+                  {ordem>=0
+                    ? <span style={{fontSize:10,fontWeight:700,color:"#fff",background:C.brand,borderRadius:"50%",width:16,height:16,display:"inline-flex",alignItems:"center",justifyContent:"center"}}>{ordem+1}</span>
+                    : (tem && diaCongelado(isoD) && <span title="Custo congelado (realizado lançado)" style={{fontSize:11,color:C.brand2}}>❄</span>)}
                 </div>
                 {tem && <div style={{marginTop:2}}>{diaItens(isoD).map((m,k)=>(
                   <div key={k} style={{fontSize:9,color:C.brand2,lineHeight:1.3,fontVariantNumeric:"tabular-nums",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{m.nome} <b style={{color:C.brand}}>{num(m.prev)}</b></div>
@@ -282,7 +353,11 @@ export function Calendario({cardapio, pratos, pratoMap, custoPrato, custoPratosL
             );
           })}
         </div>
-        <p style={{fontSize:11,color:C.muted,marginTop:10}}>Clique num dia para montar o cardápio ao lado.</p>
+        <p style={{fontSize:11,color:C.muted,marginTop:10}}>{
+          modo==="limpar" ? "Toque nos dias que quer limpar (só os que têm cardápio) e confirme em \"Limpar selecionados\"."
+          : modo==="trocar" ? "Toque em 2 dias para trocar o cardápio entre eles (① e ②). Se um estiver vazio, o cardápio é movido para ele."
+          : "Clique num dia para montar o cardápio ao lado."
+        }</p>
       </div>
 
       <div style={{flex:"1 1 420px",minWidth:300}}>

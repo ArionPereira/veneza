@@ -1,6 +1,6 @@
 import React from "react";
 const { useState } = React;
-import { C, SH, SH2, SERIF, CATEGORIAS, brl } from "../constants.js";
+import { C, SH, SH2, SERIF, CATEGORIAS, UNIDADES, rotuloQtd, brl } from "../constants.js";
 import { SectionTitle } from "../ui.jsx";
 import { PrecoCeasaCell, AtualizarCeasa, RefCarnes, ConsultaCeasa } from "../ceasa.jsx";
 
@@ -8,20 +8,17 @@ import { PrecoCeasaCell, AtualizarCeasa, RefCarnes, ConsultaCeasa } from "../cea
 // FichaCard
 // ---------------------------------------------------------------------------
 
-function FichaCard({prato, insumos, insumoMap, custoLinha, custoPrato, inp, updatePrato, removePrato, addLinha, updateLinha, removeLinha}) {
+function FichaCard({prato, insumos, insumoMap, custoLinha, custoPrato, inp, hiName, updatePrato, removePrato, addLinha, updateLinha, removeLinha}) {
   const [open, setOpen] = useState(false);
   const total = custoPrato(prato);
   return (
     <div style={{background:C.card,border:"1px solid "+C.line,borderRadius:12,overflow:"hidden",boxShadow:SH}}>
       <div style={{display:"flex",alignItems:"center",gap:10,padding:"12px 14px",background:C.sage,borderBottom:open?"1px solid "+C.line:"none",flexWrap:"wrap"}}>
         <button onClick={()=>setOpen(o=>!o)} style={{border:"none",background:"transparent",cursor:"pointer",fontSize:14,color:C.brand,width:18}}>{open?"▾":"▸"}</button>
-        <input value={prato.nome} onChange={e=>updatePrato(prato.id,"nome",e.target.value)} style={{...inp,flex:"2 1 160px",fontWeight:600}}/>
+        <input value={prato.nome} onChange={e=>updatePrato(prato.id,"nome",e.target.value)} style={{...inp,flex:"2 1 160px",fontWeight:600,...hiName}}/>
         <select value={prato.categoria} onChange={e=>updatePrato(prato.id,"categoria",e.target.value)} style={{...inp,flex:"1 1 120px"}}>
           {CATEGORIAS.map(c=><option key={c} value={c}>{c}</option>)}
         </select>
-        <label style={{fontSize:12,color:C.muted,display:"flex",alignItems:"center",gap:4}}>
-          <input type="checkbox" checked={!!prato.sazonal} onChange={e=>updatePrato(prato.id,"sazonal",e.target.checked)}/> sazonal
-        </label>
         <span style={{fontFamily:SERIF,fontSize:20,color:C.brand,fontVariantNumeric:"tabular-nums",minWidth:90,textAlign:"right"}}>{brl(total)}</span>
         <button onClick={()=>removePrato(prato.id)} style={{border:"none",background:"transparent",color:C.clay,cursor:"pointer",fontSize:18}}>&times;</button>
       </div>
@@ -30,7 +27,7 @@ function FichaCard({prato, insumos, insumoMap, custoLinha, custoPrato, inp, upda
           <table style={{width:"100%",minWidth:420}}>
             <thead><tr>
               <th style={{textAlign:"left",fontSize:11,color:C.muted,padding:"4px 6px"}}>Ingrediente</th>
-              <th style={{textAlign:"right",fontSize:11,color:C.muted,padding:"4px 6px"}}>g cru/pessoa</th>
+              <th style={{textAlign:"right",fontSize:11,color:C.muted,padding:"4px 6px"}}>Qtd cru/pessoa</th>
               <th style={{textAlign:"right",fontSize:11,color:C.muted,padding:"4px 6px"}}>FC</th>
               <th style={{textAlign:"right",fontSize:11,color:C.muted,padding:"4px 6px"}}>Custo</th>
               <th style={{width:30}}></th>
@@ -43,10 +40,11 @@ function FichaCard({prato, insumos, insumoMap, custoLinha, custoPrato, inp, upda
                       {insumos.map(i=><option key={i.id} value={i.id}>{i.nome}</option>)}
                     </select>
                   </td>
-                  <td style={{padding:"3px 6px",textAlign:"right"}}>
-                    <input type="number" step="5" min="0" value={l.g}
+                  <td style={{padding:"3px 6px",textAlign:"right",whiteSpace:"nowrap"}}>
+                    <input type="number" step={ins&&ins.unidade==="un"?"1":"5"} min="0" value={l.g}
                       onChange={e=>updateLinha(prato.id,idx,"g",parseFloat(e.target.value)||0)}
-                      style={{...inp,width:80,textAlign:"right"}}/>
+                      style={{...inp,width:64,textAlign:"right"}}/>
+                    <span style={{marginLeft:5,fontSize:12,color:C.muted}}>{rotuloQtd(ins&&ins.unidade)}</span>
                   </td>
                   <td style={{padding:"3px 6px",textAlign:"right",color:C.muted,fontVariantNumeric:"tabular-nums"}}>{ins?Number(ins.fc).toFixed(2):"—"}</td>
                   <td style={{padding:"3px 6px",textAlign:"right",fontVariantNumeric:"tabular-nums"}}>{brl(custoLinha(l))}</td>
@@ -71,15 +69,26 @@ function FichaCard({prato, insumos, insumoMap, custoLinha, custoPrato, inp, upda
 // Custos (exportado)
 // ---------------------------------------------------------------------------
 
+const normBusca = (s) => (s||"").toString().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").trim();
+
 export function Custos({insumos, insumoMap, pratos, custoLinha, custoPrato, updateInsumo, addInsumo, removeInsumo, ceasa, setCeasa, updatePrato, addPrato, removePrato, addLinha, updateLinha, removeLinha}) {
   const [view, setView] = useState("fichas");
+  const [busca, setBusca] = useState("");
   const inp  = {border:"1px solid "+C.line,borderRadius:6,padding:"6px 8px",fontSize:14,background:C.paper,color:C.ink};
   const cell = {padding:"8px 10px",borderBottom:"1px solid "+C.line,fontSize:14};
+  const toolbar = {display:"flex",gap:10,alignItems:"center",flexWrap:"wrap",margin:"14px 0 4px"};
+  const addBtn  = {background:C.brand,color:"#fff",border:"none",borderRadius:8,padding:"10px 18px",fontSize:14,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap"};
+  const buscaInp= {...inp,flex:"1 1 200px",maxWidth:300,padding:"9px 11px"};
+
+  const q = normBusca(busca);
+  const hiName = q ? {background:"#FFF7DA"} : null;
+  const insumosFiltrados = q ? insumos.filter(i=>normBusca(i.nome).includes(q)) : insumos;
+  const pratosFiltrados  = q ? pratos.filter(p=>normBusca(p.nome).includes(q)) : pratos;
 
   return (<>
     <div style={{display:"flex",gap:4,marginTop:8}}>
       {[["fichas","Pratos (fichas técnicas)"],["insumos","Insumos & preços"],["ceasa","Consultar CEASA"]].map(([id,label])=>(
-        <button key={id} onClick={()=>setView(id)}
+        <button key={id} onClick={()=>{ setView(id); setBusca(""); }}
           style={{border:"1px solid "+C.line,cursor:"pointer",fontSize:13,fontWeight:view===id?700:500,padding:"8px 14px",borderRadius:8,background:view===id?C.card:"transparent",color:view===id?C.brand:C.muted}}>
           {label}
         </button>
@@ -89,24 +98,27 @@ export function Custos({insumos, insumoMap, pratos, custoLinha, custoPrato, upda
     {view==="insumos" && (<>
       <SectionTitle>Insumos e preço de compra</SectionTitle>
       <p style={{fontSize:13,color:C.muted,marginTop:-6}}><b>FC</b> = fator de correção (peso bruto ÷ líquido): cobre osso, casca e aparas — o que se compra a mais. Mexeu no preço, todos os pratos recalculam.</p>
-      <div style={{background:C.card,border:"1px solid "+C.line,borderRadius:12,overflow:"hidden",boxShadow:SH,overflowX:"auto",marginTop:12}}>
+      <div style={toolbar}>
+        <button onClick={addInsumo} style={addBtn}>+ Adicionar insumo</button>
+        <input value={busca} onChange={e=>setBusca(e.target.value)} placeholder="Buscar insumo…" style={buscaInp}/>
+      </div>
+      <div style={{background:C.card,border:"1px solid "+C.line,borderRadius:12,overflow:"hidden",boxShadow:SH,overflowX:"auto",WebkitOverflowScrolling:"touch",marginTop:12}}>
         <table style={{width:"100%",minWidth:420}}>
           <thead><tr style={{background:C.sage}}>
             <th style={{...cell,textAlign:"left",fontWeight:700}}>Insumo</th>
             <th style={{...cell,textAlign:"center",fontWeight:700}}>Un.</th>
-            <th style={{...cell,textAlign:"right",fontWeight:700}}>Preço/kg</th>
+            <th style={{...cell,textAlign:"right",fontWeight:700}}>Preço</th>
             <th style={{...cell,textAlign:"center",fontWeight:700}}>FC</th>
             <th style={{...cell,textAlign:"center",fontWeight:700}}>Mín.</th>
             <th style={{...cell,width:36}}></th>
           </tr></thead>
           <tbody>
-            {insumos.map(i=>(
+            {insumosFiltrados.map(i=>(
               <tr key={i.id}>
-                <td style={cell}><input value={i.nome} onChange={e=>updateInsumo(i.id,"nome",e.target.value)} style={{...inp,width:"100%"}}/></td>
+                <td style={cell}><input value={i.nome} onChange={e=>updateInsumo(i.id,"nome",e.target.value)} style={{...inp,width:"100%",...hiName}}/></td>
                 <td style={{...cell,textAlign:"center"}}>
                   <select value={i.unidade} onChange={e=>updateInsumo(i.id,"unidade",e.target.value)} style={{...inp,width:64}}>
-                    <option value="kg">kg</option>
-                    <option value="L">L</option>
+                    {UNIDADES.map(u=><option key={u} value={u}>{u}</option>)}
                   </select>
                 </td>
                 <td style={{...cell,textAlign:"right"}}><PrecoCeasaCell insumo={i} updateInsumo={updateInsumo} ceasa={ceasa} inp={inp}/></td>
@@ -125,32 +137,30 @@ export function Custos({insumos, insumoMap, pratos, custoLinha, custoPrato, upda
                 </td>
               </tr>
             ))}
+            {insumosFiltrados.length===0 && <tr><td colSpan={6} style={{...cell,textAlign:"center",color:C.muted}}>Nenhum insumo com "{busca}".</td></tr>}
           </tbody>
         </table>
       </div>
-      <button onClick={addInsumo}
-        style={{marginTop:14,background:C.brand,color:"#fff",border:"none",borderRadius:8,padding:"10px 18px",fontSize:14,fontWeight:600,cursor:"pointer"}}>
-        + Adicionar insumo
-      </button>
       <AtualizarCeasa insumos={insumos} updateInsumo={updateInsumo} ceasa={ceasa} setCeasa={setCeasa}/>
       <RefCarnes/>
     </>)}
 
     {view==="fichas" && (<>
       <SectionTitle>Fichas técnicas</SectionTitle>
-      <p style={{fontSize:13,color:C.muted,marginTop:-6}}>Gramagem <b>em cru por pessoa</b>. Custo da porção = (g ÷ 1000) × FC × preço/kg, somado por ingrediente.</p>
+      <p style={{fontSize:13,color:C.muted,marginTop:-6}}>Quantidade <b>em cru por pessoa</b> — em <b>g</b> (insumo em kg), <b>mL</b> (litro) ou <b>un</b> (unidade). Custo da porção = qtd × FC × preço, somado por ingrediente.</p>
+      <div style={toolbar}>
+        <button onClick={addPrato} style={addBtn}>+ Adicionar prato</button>
+        <input value={busca} onChange={e=>setBusca(e.target.value)} placeholder="Buscar prato…" style={buscaInp}/>
+      </div>
       <div style={{display:"flex",flexDirection:"column",gap:14,marginTop:12}}>
-        {pratos.map(p=>(
+        {pratosFiltrados.map(p=>(
           <FichaCard key={p.id} prato={p} insumos={insumos} insumoMap={insumoMap}
-            custoLinha={custoLinha} custoPrato={custoPrato} inp={inp}
+            custoLinha={custoLinha} custoPrato={custoPrato} inp={inp} hiName={hiName}
             updatePrato={updatePrato} removePrato={removePrato}
             addLinha={addLinha} updateLinha={updateLinha} removeLinha={removeLinha}/>
         ))}
+        {pratosFiltrados.length===0 && <p style={{fontSize:13,color:C.muted}}>Nenhum prato com "{busca}".</p>}
       </div>
-      <button onClick={addPrato}
-        style={{marginTop:14,background:C.brand,color:"#fff",border:"none",borderRadius:8,padding:"10px 18px",fontSize:14,fontWeight:600,cursor:"pointer"}}>
-        + Adicionar prato
-      </button>
     </>)}
 
     {view==="ceasa" && (<>

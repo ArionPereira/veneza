@@ -1,7 +1,7 @@
 import React from "react";
 const { useState, useEffect, useMemo, useRef } = React;
 
-import { C, clientId, novoId, estaEditando, fmtHora, brl } from "../constants.js";
+import { C, clientId, novoId, estaEditando, fmtHora, brl, fatorUnidade } from "../constants.js";
 import { hojeISO, addDias, fmtData, iso, fromISO } from "../dates.js";
 import { sb, CHAVE } from "../db.js";
 import {
@@ -12,6 +12,7 @@ import { Centro, BarraPresenca, Header } from "../ui.jsx";
 import { Calendario } from "../tabs/Calendario.jsx";
 import { Custos }     from "../tabs/Custos.jsx";
 import { Operacao }   from "../tabs/Operacao.jsx";
+import { Painel }     from "../tabs/Painel.jsx";
 import { Relatorio }  from "../tabs/Relatorio.jsx";
 import { Mural }      from "../tabs/Mural.jsx";
 
@@ -34,6 +35,7 @@ export function Restaurante({ nome, onSair }) {
   const dadosRef = useRef({}); const nomeRef = useRef(nome); const timerRef = useRef(null);
   useEffect(()=>{ dadosRef.current={insumos,pratos,cardapio,tiposRefeicao,previstoPadrao,estoque,ceasa}; },[insumos,pratos,cardapio,tiposRefeicao,previstoPadrao,estoque,ceasa]);
   useEffect(()=>{ nomeRef.current=nome; },[nome]);
+  useEffect(()=>{ document.title="Refeitório · Sementes Veneza"; return ()=>{ document.title="Sementes Veneza"; }; },[]);
 
   const aplicar = (e) => {
     setInsumos(e.insumos||[]);
@@ -115,7 +117,7 @@ export function Restaurante({ nome, onSair }) {
   // ---- pratos + fichas ----
   const updatePrato = (id,campo,val) => { setPratos(ps=>ps.map(p=>p.id===id?{...p,[campo]:val}:p)); agendarSave(); };
   const removePrato = (id) => { setPratos(ps=>ps.filter(p=>p.id!==id)); setCardapio(c=>{ const nc={}; Object.keys(c).forEach(d=>{ const dia={}; Object.keys(c[d]).forEach(rid=>{ const r=c[d][rid]; dia[rid]={...r,pratos:(r.pratos||[]).filter(x=>x!==id)}; }); nc[d]=dia; }); return nc; }); agendarSave(); };
-  const addPrato    = () => { setPratos(ps=>[...ps,{id:novoId(),nome:"Novo prato",categoria:"Prato principal",sazonal:false,ficha:[]}]); agendarSave(); };
+  const addPrato    = () => { setPratos(ps=>[...ps,{id:novoId(),nome:"Novo prato",categoria:"Prato principal",ficha:[]}]); agendarSave(); };
   const addLinha    = (pid) => { setPratos(ps=>ps.map(p=>p.id===pid?{...p,ficha:[...p.ficha,{insumoId:(insumos[0]&&insumos[0].id)||"",g:0}]}:p)); agendarSave(); };
   const updateLinha = (pid,idx,campo,val) => { setPratos(ps=>ps.map(p=>p.id===pid?{...p,ficha:p.ficha.map((l,i)=>i===idx?{...l,[campo]:val}:l)}:p)); agendarSave(); };
   const removeLinha = (pid,idx) => { setPratos(ps=>ps.map(p=>p.id===pid?{...p,ficha:p.ficha.filter((_,i)=>i!==idx)}:p)); agendarSave(); };
@@ -123,6 +125,8 @@ export function Restaurante({ nome, onSair }) {
   // ---- dia (por data) ----
   const copiarDia         = (origem,destino,tipos) => { if(!origem||!destino)return; setCardapio(c=>{ const src=c[origem]; if(!src)return c; const destDia={...(c[destino]||{})}; Object.keys(src).forEach(rid=>{ if(tipos&&tipos.length&&!tipos.includes(rid))return; destDia[rid]={pratos:(src[rid].pratos||[]).slice(),previsto:src[rid].previsto,realizado:null,custoCong:null}; }); return {...c,[destino]:destDia}; }); agendarSave(); };
   const limparDia         = (data) => { setCardapio(c=>{ const n={...c}; delete n[data]; return n; }); agendarSave(); };
+  const limparDias        = (datas) => { if(!datas||!datas.length)return; setCardapio(c=>{ const n={...c}; datas.forEach(d=>delete n[d]); return n; }); agendarSave(); };
+  const trocarDias        = (d1,d2) => { if(!d1||!d2||d1===d2)return; setCardapio(c=>{ const nc={...c}; const a=c[d1], b=c[d2]; if(b!==undefined) nc[d1]=b; else delete nc[d1]; if(a!==undefined) nc[d2]=a; else delete nc[d2]; return nc; }); agendarSave(); };
   const recalcularDia     = (data) => { setCardapio(c=>{ const dia={...(c[data]||{})}; Object.keys(dia).forEach(rid=>{ const r=dia[rid]; if(r.realizado!=null) dia[rid]={...r,custoCong:custoPratosLista(r.pratos)}; }); return {...c,[data]:dia}; }); agendarSave(); };
   const segDe             = (dataISO) => { const d=fromISO(dataISO); const off=(d.getDay()+6)%7; d.setDate(d.getDate()-off); return iso(d); };
   const copiarSemana      = (origemISO,destinoISO,tipos) => { if(!origemISO||!destinoISO)return; const os=segDe(origemISO),ds=segDe(destinoISO); setCardapio(c=>{ const nc={...c}; for(let i=0;i<7;i++){ const od=addDias(os,i),dd=addDias(ds,i); const src=c[od]; if(!src)continue; const destDia={...(nc[dd]||{})}; Object.keys(src).forEach(rid=>{ if(tipos&&tipos.length&&!tipos.includes(rid))return; destDia[rid]={pratos:(src[rid].pratos||[]).slice(),previsto:src[rid].previsto,realizado:null,custoCong:null}; }); nc[dd]=destDia; } return nc; }); agendarSave(); };
@@ -132,7 +136,7 @@ export function Restaurante({ nome, onSair }) {
   // ---- cálculos de custo ----
   const insumoMap        = useMemo(()=>{ const m={}; insumos.forEach(i=>m[i.id]=i); return m; },[insumos]);
   const pratoMap         = useMemo(()=>{ const m={}; pratos.forEach(p=>m[p.id]=p); return m; },[pratos]);
-  const custoLinha       = (l) => { const i=insumoMap[l.insumoId]; if(!i)return 0; return ((Number(l.g)||0)/1000)*i.fc*i.preco; };
+  const custoLinha       = (l) => { const i=insumoMap[l.insumoId]; if(!i)return 0; return ((Number(l.g)||0)/fatorUnidade(i.unidade))*i.fc*i.preco; };
   const custoPrato       = (p) => !p?0:p.ficha.reduce((s,l)=>s+custoLinha(l),0);
   const custoPratosLista = (ids) => (ids||[]).reduce((s,id)=>s+custoPrato(pratoMap[id]),0);
 
@@ -145,9 +149,10 @@ export function Restaurante({ nome, onSair }) {
       <Header tab={tab} setTab={setTab} onSair={onSair}/>
       {erro && <div style={{maxWidth:1080,margin:"0 auto 12px",padding:"10px 14px",background:"#FBEAE3",border:"1px solid "+C.clay,borderRadius:10,color:C.clay,fontSize:13}}>Erro: {erro}</div>}
       <main style={{maxWidth:1080,margin:"0 auto",padding:"0 20px"}}>
-        {tab==="cardapio"  && <Calendario {...{cardapio,pratos,pratoMap,custoPrato,custoPratosLista,tiposRefeicao,addPratoMeal,removePratoMeal,ativarRefDia,removerRefDia,setPrevisto,setRealizado,copiarDia,copiarDiaIntervalo,limparDia,copiarSemana,recalcularDia,segDe}}/>}
+        {tab==="cardapio"  && <Calendario {...{cardapio,pratos,pratoMap,custoPrato,custoPratosLista,tiposRefeicao,addPratoMeal,removePratoMeal,ativarRefDia,removerRefDia,setPrevisto,setRealizado,copiarDia,copiarDiaIntervalo,limparDia,limparDias,trocarDias,copiarSemana,recalcularDia,segDe}}/>}
         {tab==="custos"    && <Custos     {...{insumos,insumoMap,pratos,custoLinha,custoPrato,updateInsumo,addInsumo,removeInsumo,ceasa,setCeasa,updatePrato,addPrato,removePrato,addLinha,updateLinha,removeLinha}}/>}
         {tab==="operacao"  && <Operacao   {...{cardapio,pratoMap,custoPrato,custoPratosLista,tiposRefeicao,insumos,insumoMap,estoque,setEstoqueItem}}/>}
+        {tab==="painel"    && <Painel     {...{cardapio,pratoMap,insumoMap,custoPrato,custoPratosLista,tiposRefeicao,insumos}}/>}
         {tab==="relatorio" && <Relatorio  {...{cardapio,pratoMap,custoPratosLista,tiposRefeicao}}/>}
         {tab==="mural"     && <Mural      {...{cardapio,pratoMap,tiposRefeicao}}/>}
       </main>

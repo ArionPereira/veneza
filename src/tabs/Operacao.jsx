@@ -1,6 +1,6 @@
 import React from "react";
 const { useState } = React;
-import { C, SH, CATEGORIAS, brl, num } from "../constants.js";
+import { C, SH, CATEGORIAS, brl, num, fatorUnidade } from "../constants.js";
 import { hojeISO, addDias, fmtData, intervalo } from "../dates.js";
 import { SectionTitle } from "../ui.jsx";
 
@@ -24,7 +24,7 @@ export function Operacao({cardapio, pratoMap, custoPrato, custoPratosLista, tipo
       m.pratos.forEach(id=>{
         const p = pratoMap[id]; if(!p) return;
         const cp = custoPrato(p)*ref; porCat[p.categoria]=(porCat[p.categoria]||0)+cp; totalAlimento+=cp;
-        p.ficha.forEach(l=>{ base[l.insumoId]=(base[l.insumoId]||0)+((Number(l.g)||0)/1000)*ref; });
+        p.ficha.forEach(l=>{ const ins=insumoMap[l.insumoId]; base[l.insumoId]=(base[l.insumoId]||0)+((Number(l.g)||0)/fatorUnidade(ins&&ins.unidade))*ref; });
       });
     });
     if (teve) diasComMenu++;
