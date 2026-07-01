@@ -2,7 +2,7 @@ import React from "react";
 const { useState, useEffect } = React;
 import { C } from "../../constants.js";
 import { Stat } from "../../ui.jsx";
-import { S, hoje, num, inserir, rpc, csv, Campo, Tabela, Form, Erro, Aviso, Titulo, useDados, Shell } from "./Common.jsx";
+import { S, hoje, num, inserir, rpc, msgErro, csv, Campo, Tabela, Form, Erro, Aviso, Titulo, useDados, Shell } from "./Common.jsx";
 
 const TABELAS=["alm_itens","alm_movimentacoes","alm_inventarios","alm_inventario_itens","alm_categorias","alm_unidades"];
 
@@ -34,26 +34,26 @@ export function Almoxarifado({onSair,nome}) {
   const addMovimento=async(f,el)=>{try{
     await rpc("alm_registrar_movimentacao",{p_item_id:f.get("item_id"),p_data:f.get("data"),p_tipo:f.get("tipo"),p_quantidade:Number(f.get("quantidade")),p_documento:f.get("documento")||null,p_responsavel:f.get("responsavel")||nome||null,p_observacao:f.get("observacao")||null});
     el.reset(); await recarregar();
-  }catch(e){setErro(e.message)}};
+  }catch(e){setErro(msgErro(e))}};
   const addItem=async(f,el)=>{try{
     await rpc("alm_criar_item",{p_nome:f.get("nome").trim(),p_categoria_id:f.get("categoria_id"),p_unidade_id:f.get("unidade_id"),p_estoque_minimo:Number(f.get("estoque_minimo")||0)});
     el.reset(); await recarregar();
-  }catch(e){setErro(e.message)}};
+  }catch(e){setErro(msgErro(e))}};
   const addCategoria=async(f,el)=>{try{
     const tag=f.get("tag").toUpperCase().replace(/[^A-Z0-9]/g,"");
     await inserir("alm_categorias",{nome:f.get("nome").trim(),tag,proximo_numero:1,ativo:true});el.reset();await recarregar();
-  }catch(e){setErro(e.message)}};
+  }catch(e){setErro(msgErro(e))}};
   const addUnidade=async(f,el)=>{try{
     await inserir("alm_unidades",{nome:f.get("nome").trim(),sigla:f.get("sigla").trim(),ativo:true});el.reset();await recarregar();
-  }catch(e){setErro(e.message)}};
+  }catch(e){setErro(msgErro(e))}};
   const abrirInventario=async(f,el)=>{try{
     const id=await rpc("alm_abrir_inventario",{p_data:f.get("data"),p_responsavel:f.get("responsavel")||nome||null,p_observacao:f.get("observacao")||null});
     el.reset();setInventarioId(id);await recarregar();
-  }catch(e){setErro(e.message)}};
-  const salvarContagem=async(id,valor)=>{try{await rpc("alm_atualizar_contagem",{p_inventario_item_id:id,p_contagem:valor});await recarregar()}catch(e){setErro(e.message)}};
+  }catch(e){setErro(msgErro(e))}};
+  const salvarContagem=async(id,valor)=>{try{await rpc("alm_atualizar_contagem",{p_inventario_item_id:id,p_contagem:valor});await recarregar()}catch(e){setErro(msgErro(e))}};
   const concluirInventario=async()=>{if(!inventarioSelecionado)return;if(!window.confirm("Concluir o inventário e ajustar o estoque pelas divergências?"))return;try{
     await rpc("alm_concluir_inventario",{p_inventario_id:inventarioSelecionado.id,p_responsavel:nome||inventarioSelecionado.responsavel||null});await recarregar();
-  }catch(e){setErro(e.message)}};
+  }catch(e){setErro(msgErro(e))}};
 
   const abaixo=itens.filter(x=>x.ativo&&saldo(x.id)<Number(x.estoque_minimo||0));
   const unidadeItem=x=>unidadePorId[x.unidade_id]?.sigla||x.unidade||"";

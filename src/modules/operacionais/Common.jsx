@@ -21,6 +21,22 @@ export const inserir=(t,v)=>ok(sb.from(t).insert(v).select().single());
 export const atualizar=(t,id,v)=>ok(sb.from(t).update(v).eq("id",id).select().single());
 export const remover=(t,id)=>ok(sb.from(t).delete().eq("id",id));
 export const rpc=(nome,args)=>ok(sb.rpc(nome,args));
+// traduz erros do Supabase/Postgres em mensagens que o usuário entende
+export const msgErro=(e)=>{
+  const code=(e&&e.code)||"";
+  const raw=((e&&e.message)||String(e||""))+" "+((e&&e.details)||"");
+  if(code==="23505"||/duplicate key|already exists|unique/i.test(raw)){
+    if(/\bdata\b|leitura/i.test(raw)) return "Já existe um lançamento para esse ponto nessa data. Para corrigir, clique na linha do histórico e edite o registro em vez de criar outro.";
+    return "Já existe um registro com esses dados (valor duplicado).";
+  }
+  if(code==="23503"||/foreign key/i.test(raw)) return "Este item está vinculado a outros lançamentos e não pode ser removido. Remova os lançamentos ligados a ele primeiro.";
+  if(code==="23502"||/null value|not-null/i.test(raw)) return "Preencha todos os campos obrigatórios antes de salvar.";
+  if(code==="23514"||/check constraint/i.test(raw)) return "Algum valor está fora do permitido. Confira os números informados.";
+  if(code==="PGRST116"||/0 rows/i.test(raw)) return "Registro não encontrado — talvez já tenha sido removido. Atualize a página.";
+  if(code==="42501"||/permission denied|not authorized|row-level security|JWT/i.test(raw)) return "Você não tem permissão para essa ação.";
+  if(/Failed to fetch|NetworkError|network|Load failed/i.test(raw)) return "Sem conexão com o servidor. Verifique a internet e tente novamente.";
+  return (e&&e.message)||"Não foi possível concluir a operação. Tente novamente.";
+};
 export const csv=(nome,rows)=>{
   const esc=v=>'"'+String(v??"").replace(/"/g,'""')+'"';
   const blob=new Blob(["\uFEFF"+rows.map(r=>r.map(esc).join(";")).join("\n")],{type:"text/csv;charset=utf-8"});
@@ -34,7 +50,7 @@ export function Aviso({children}){return <div style={{padding:10,background:C.sa
 export function Titulo({children,acao}){return <div style={{display:"flex",alignItems:"center",gap:10,margin:"28px 0 12px"}}><h2 style={{fontSize:13,fontWeight:700,letterSpacing:.8,textTransform:"uppercase",color:C.brand,margin:0,flex:1}}>{children}</h2>{acao}</div>}
 export function useDados(tabelas,prefixo){
   const [dados,setDados]=useState({}),[loading,setLoading]=useState(true),[erro,setErro]=useState("");
-  const recarregar=useCallback(async()=>{try{const vals=await Promise.all(tabelas.map(t=>listar(t)));setDados(Object.fromEntries(tabelas.map((t,i)=>[t,vals[i]||[]])));setErro("")}catch(e){setErro(e.message||String(e))}finally{setLoading(false)}},[tabelas.join("|")]);
+  const recarregar=useCallback(async()=>{try{const vals=await Promise.all(tabelas.map(t=>listar(t)));setDados(Object.fromEntries(tabelas.map((t,i)=>[t,vals[i]||[]])));setErro("")}catch(e){setErro(msgErro(e))}finally{setLoading(false)}},[tabelas.join("|")]);
   useEffect(()=>{recarregar();const ch=sb.channel(prefixo+"-realtime");tabelas.forEach(t=>ch.on("postgres_changes",{event:"*",schema:"public",table:t},recarregar));ch.subscribe();return()=>{try{sb.removeChannel(ch)}catch(e){}}},[recarregar]);
   return {dados,loading,erro,recarregar,setErro};
 }

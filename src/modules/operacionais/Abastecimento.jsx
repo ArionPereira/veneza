@@ -2,7 +2,7 @@ import React from "react";
 const { useState } = React;
 import { C } from "../../constants.js";
 import { Stat } from "../../ui.jsx";
-import { S, hoje, num, inserir, rpc, csv, Campo, Tabela, Form, Erro, Aviso, Titulo, useDados, Shell } from "./Common.jsx";
+import { S, hoje, num, inserir, rpc, msgErro, csv, Campo, Tabela, Form, Erro, Aviso, Titulo, useDados, Shell } from "./Common.jsx";
 
 const TABELAS=["comb_veiculos","comb_tanques","comb_abastecimentos","comb_entradas"];
 const COMBUSTIVEIS=[["diesel","Diesel"],["gasolina","Gasolina"],["etanol","Etanol"],["gas","Gás"]];
@@ -62,10 +62,10 @@ export function Abastecimento({onSair,nome}) {
   const veiculos=dados.comb_veiculos||[],tanques=dados.comb_tanques||[],abastecimentos=dados.comb_abastecimentos||[],entradas=dados.comb_entradas||[];
   const veiculoPorId=Object.fromEntries(veiculos.map(x=>[x.id,x])),tanquePorId=Object.fromEntries(tanques.map(x=>[x.id,x]));
 
-  const addVeiculo=async(f,el)=>{try{await inserir("comb_veiculos",{identificacao:f.get("identificacao").trim(),placa:f.get("placa").trim()||null,tipo:f.get("tipo").trim(),combustivel:f.get("combustivel"),ativo:true});el.reset();await recarregar()}catch(e){setErro(e.message)}};
-  const addTanque=async(f,el)=>{try{await inserir("comb_tanques",{nome:f.get("nome").trim(),combustivel:f.get("combustivel"),capacidade_l:Number(f.get("capacidade")),saldo_l:0,unidade:f.get("unidade"),ativo:true});el.reset();await recarregar()}catch(e){setErro(e.message)}};
-  const addAbastecimento=async(f,el)=>{try{await rpc("comb_registrar_abastecimento",{p_veiculo_id:f.get("veiculo_id"),p_tanque_id:f.get("tanque_id"),p_data:f.get("data"),p_quantidade:Number(f.get("quantidade")),p_odometro:f.get("odometro")?Number(f.get("odometro")):null,p_observacao:f.get("observacao")||null});el.reset();await recarregar()}catch(e){setErro(e.message)}};
-  const addEntrada=async(f,el)=>{try{await rpc("comb_registrar_entrada",{p_tanque_id:f.get("tanque_id"),p_data:f.get("data"),p_quantidade:Number(f.get("quantidade")),p_fornecedor:f.get("fornecedor")||null,p_documento:f.get("documento")||null,p_responsavel:f.get("responsavel")||nome||null,p_observacao:f.get("observacao")||null});el.reset();await recarregar()}catch(e){setErro(e.message)}};
+  const addVeiculo=async(f,el)=>{try{await inserir("comb_veiculos",{identificacao:f.get("identificacao").trim(),placa:f.get("placa").trim()||null,tipo:f.get("tipo").trim(),combustivel:f.get("combustivel"),ativo:true});el.reset();await recarregar()}catch(e){setErro(msgErro(e))}};
+  const addTanque=async(f,el)=>{try{await inserir("comb_tanques",{nome:f.get("nome").trim(),combustivel:f.get("combustivel"),capacidade_l:Number(f.get("capacidade")),saldo_l:0,unidade:f.get("unidade"),ativo:true});el.reset();await recarregar()}catch(e){setErro(msgErro(e))}};
+  const addAbastecimento=async(f,el)=>{try{await rpc("comb_registrar_abastecimento",{p_veiculo_id:f.get("veiculo_id"),p_tanque_id:f.get("tanque_id"),p_data:f.get("data"),p_quantidade:Number(f.get("quantidade")),p_odometro:f.get("odometro")?Number(f.get("odometro")):null,p_observacao:f.get("observacao")||null});el.reset();await recarregar()}catch(e){setErro(msgErro(e))}};
+  const addEntrada=async(f,el)=>{try{await rpc("comb_registrar_entrada",{p_tanque_id:f.get("tanque_id"),p_data:f.get("data"),p_quantidade:Number(f.get("quantidade")),p_fornecedor:f.get("fornecedor")||null,p_documento:f.get("documento")||null,p_responsavel:f.get("responsavel")||nome||null,p_observacao:f.get("observacao")||null});el.reset();await recarregar()}catch(e){setErro(msgErro(e))}};
 
   const totaisPorUnidade=["L","m3","kg"].map(un=>({id:un,un,total:abastecimentos.filter(x=>x.unidade===un).reduce((s,x)=>s+Number(x.litros||0),0),entradas:entradas.filter(x=>x.unidade===un).reduce((s,x)=>s+Number(x.quantidade||0),0)})).filter(x=>x.total||x.entradas);
 

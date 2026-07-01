@@ -2,7 +2,7 @@ import React from "react";
 const { useState } = React;
 import { C } from "../../constants.js";
 import { Stat } from "../../ui.jsx";
-import { S, hoje, num, inserir, atualizar, remover, csv, Campo, Tabela, Form, Erro, Titulo, useDados, Shell } from "./Common.jsx";
+import { S, hoje, num, inserir, atualizar, remover, msgErro, csv, Campo, Tabela, Form, Erro, Titulo, useDados, Shell } from "./Common.jsx";
 
 function Modal({onFechar,children}){
   return <div onClick={onFechar} style={{position:"fixed",inset:0,background:"rgba(28,42,54,.5)",zIndex:100,display:"flex",alignItems:"flex-start",justifyContent:"center",padding:"24px 16px",overflowY:"auto"}}>
@@ -36,21 +36,21 @@ export function Pluviometria({onSair,nome}) {
   const salvarPonto=async(f,el)=>{try{
     await inserir("pluv_pontos",{nome:f.get("nome").trim(),codigo:f.get("codigo").trim()||null,localizacao:f.get("localizacao").trim()||null,latitude:f.get("latitude")||null,longitude:f.get("longitude")||null,ativo:true});
     el.reset(); await recarregar();
-  }catch(e){setErro(e.message)}};
+  }catch(e){setErro(msgErro(e))}};
   const salvarLeitura=async(f,el)=>{try{
     await inserir("pluv_leituras",{ponto_id:f.get("ponto_id"),data:f.get("data"),hora:f.get("hora")||"07:00",precipitacao_mm:Number(f.get("precipitacao_mm")),responsavel:nome||null,observacao:f.get("observacao").trim()||null});
     el.reset(); await recarregar();
-  }catch(e){setErro(e.message)}};
+  }catch(e){setErro(msgErro(e))}};
 
   // --- salvar (hidrômetro) ---
   const salvarHidro=async(f,el)=>{try{
     await inserir("hidr_pontos",{nome:f.get("nome").trim(),codigo:f.get("codigo").trim()||null,localizacao:f.get("localizacao").trim()||null,ativo:true});
     el.reset(); await recarregar();
-  }catch(e){setErro(e.message)}};
+  }catch(e){setErro(msgErro(e))}};
   const salvarHLeitura=async(f,el)=>{try{
     await inserir("hidr_leituras",{ponto_id:f.get("ponto_id"),data:f.get("data"),leitura_m3:Number(f.get("leitura_m3")),responsavel:nome||null,observacao:f.get("observacao").trim()||null});
     el.reset(); await recarregar();
-  }catch(e){setErro(e.message)}};
+  }catch(e){setErro(msgErro(e))}};
 
   // --- edição de leituras (consumo/acumulados recalculam sozinhos) ---
   const [editP,setEditP]=useState(null); // leitura pluviométrica em edição
@@ -58,12 +58,12 @@ export function Pluviometria({onSair,nome}) {
   const salvarEditP=async(f)=>{try{
     await atualizar("pluv_leituras",editP.id,{ponto_id:f.get("ponto_id"),data:f.get("data"),hora:f.get("hora")||"07:00",precipitacao_mm:Number(f.get("precipitacao_mm")),observacao:f.get("observacao").trim()||null});
     setEditP(null); await recarregar();
-  }catch(e){setErro(e.message);setEditP(null)}};
+  }catch(e){setErro(msgErro(e));setEditP(null)}};
   const salvarEditH=async(f)=>{try{
     await atualizar("hidr_leituras",editH.id,{ponto_id:f.get("ponto_id"),data:f.get("data"),leitura_m3:Number(f.get("leitura_m3")),observacao:f.get("observacao").trim()||null});
     setEditH(null); await recarregar();
-  }catch(e){setErro(e.message);setEditH(null)}};
-  const excluir=async(t,id,setEd)=>{ if(!window.confirm("Excluir esta leitura? Não dá pra desfazer.")) return; try{ await remover(t,id); setEd(null); await recarregar(); }catch(e){setErro(e.message);setEd(null)} };
+  }catch(e){setErro(msgErro(e));setEditH(null)}};
+  const excluir=async(t,id,setEd)=>{ if(!window.confirm("Excluir esta leitura? Não dá pra desfazer.")) return; try{ await remover(t,id); setEd(null); await recarregar(); }catch(e){setErro(msgErro(e));setEd(null)} };
 
   // --- métricas ---
   const totalChuva=leituras.reduce((s,x)=>s+Number(x.precipitacao_mm||0),0);
