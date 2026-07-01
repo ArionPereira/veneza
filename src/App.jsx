@@ -5,7 +5,9 @@ import { ModalNome } from "./ui.jsx";
 import { Hub } from "./Hub.jsx";
 import { Restaurante } from "./modules/Restaurante.jsx";
 import { PCM } from "./modules/PCM/PCM.jsx";
-import { Pluviometria, Abastecimento, Almoxarifado } from "./modules/operacionais.jsx";
+import { Pluviometria } from "./modules/operacionais/Pluviometria.jsx";
+import { Abastecimento } from "./modules/operacionais/Abastecimento.jsx";
+import { Almoxarifado } from "./modules/operacionais/Almoxarifado.jsx";
 
 const RENDERIZADORES = {
   restaurante: props => <Restaurante {...props} />,
