@@ -4,7 +4,7 @@ import { C, SERIF, SH } from "./constants.js";
 export const MODULOS = [
   { id:"restaurante", nome:"Restaurante", icone:"🍽️", descricao:"Cardápio, fichas técnicas, custos, operação e relatórios do refeitório.", ativo:true },
   { id:"pcm", nome:"PCM — Manutenção", icone:"🛠️", descricao:"Equipamentos, ordens de serviço e histórico de manutenção da UBS.", ativo:true },
-  { id:"pluviometria", nome:"Medição Pluviométrica", icone:"🌧️", descricao:"Pontos de medição, leituras de chuva, acumulados e relatórios.", ativo:true },
+  { id:"pluviometria", nome:"Pluviometria e Hidrômetro", icone:"🌧️", descricao:"Leituras de chuva (mm) e de hidrômetro (m³), consumo de água, acumulados e relatórios.", ativo:true },
   { id:"abastecimento", nome:"Abastecimento", icone:"⛽", descricao:"Frota, tanques, abastecimentos, consumo e custos de combustível.", ativo:true },
   { id:"almoxarifado", nome:"Estoque e Almoxarifado", icone:"📦", descricao:"Itens, entradas, saídas, inventários e controle de estoque mínimo.", ativo:true },
 ];
