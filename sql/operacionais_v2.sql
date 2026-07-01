@@ -216,8 +216,31 @@ begin
   return v_ent;
 end $$;
 
+
+create or replace function public.alm_registrar_movimentacao(
+  p_item_id uuid,p_data date,p_tipo text,p_quantidade numeric,p_documento text default null,
+  p_responsavel text default null,p_observacao text default null
+) returns public.alm_movimentacoes
+language plpgsql security definer set search_path=public as $
+declare v_saldo numeric; v_mov public.alm_movimentacoes;
+begin
+  if p_tipo not in ('entrada','saida') then raise exception 'Tipo de movimentação inválido'; end if;
+  if p_quantidade is null or p_quantidade<=0 then raise exception 'Informe uma quantidade maior que zero'; end if;
+  perform 1 from public.alm_itens where id=p_item_id and ativo for update;
+  if not found then raise exception 'Item inválido ou inativo'; end if;
+  select coalesce(sum(case when tipo='entrada' then quantidade else -quantidade end),0)
+    into v_saldo from public.alm_movimentacoes where item_id=p_item_id;
+  if p_tipo='saida' and p_quantidade>v_saldo then raise exception 'Saldo insuficiente para esta saída'; end if;
+  insert into public.alm_movimentacoes(item_id,data,tipo,quantidade,valor_unitario,documento,responsavel,observacao,origem)
+  values(p_item_id,coalesce(p_data,current_date),p_tipo,p_quantidade,0,nullif(trim(p_documento),''),
+    nullif(trim(p_responsavel),''),nullif(trim(p_observacao),''),'manual')
+  returning * into v_mov;
+  return v_mov;
+end $;
+
 grant select,insert,update,delete on public.alm_categorias,public.alm_unidades,public.comb_entradas to anon,authenticated;
 grant execute on function public.alm_criar_item(text,uuid,uuid,numeric) to anon,authenticated;
+grant execute on function public.alm_registrar_movimentacao(uuid,date,text,numeric,text,text,text) to anon,authenticated;
 grant execute on function public.alm_abrir_inventario(date,text,text) to anon,authenticated;
 grant execute on function public.alm_atualizar_contagem(uuid,numeric) to anon,authenticated;
 grant execute on function public.alm_concluir_inventario(uuid,text) to anon,authenticated;
