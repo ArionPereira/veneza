@@ -2,7 +2,13 @@ import React from "react";
 const { useState } = React;
 import { C } from "../../constants.js";
 import { Stat } from "../../ui.jsx";
-import { S, hoje, num, inserir, csv, Campo, Tabela, Form, Erro, Titulo, useDados, Shell } from "./Common.jsx";
+import { S, hoje, num, inserir, atualizar, remover, csv, Campo, Tabela, Form, Erro, Titulo, useDados, Shell } from "./Common.jsx";
+
+function Modal({onFechar,children}){
+  return <div onClick={onFechar} style={{position:"fixed",inset:0,background:"rgba(28,42,54,.5)",zIndex:100,display:"flex",alignItems:"flex-start",justifyContent:"center",padding:"24px 16px",overflowY:"auto"}}>
+    <div onClick={e=>e.stopPropagation()} style={{...S.card,width:"100%",maxWidth:460}}>{children}</div>
+  </div>;
+}
 
 const TABELAS=["pluv_pontos","pluv_leituras","hidr_pontos","hidr_leituras"];
 
@@ -46,6 +52,19 @@ export function Pluviometria({onSair,nome}) {
     el.reset(); await recarregar();
   }catch(e){setErro(e.message)}};
 
+  // --- edição de leituras (consumo/acumulados recalculam sozinhos) ---
+  const [editP,setEditP]=useState(null); // leitura pluviométrica em edição
+  const [editH,setEditH]=useState(null); // leitura de hidrômetro em edição
+  const salvarEditP=async(f)=>{try{
+    await atualizar("pluv_leituras",editP.id,{ponto_id:f.get("ponto_id"),data:f.get("data"),hora:f.get("hora")||"07:00",precipitacao_mm:Number(f.get("precipitacao_mm")),observacao:f.get("observacao").trim()||null});
+    setEditP(null); await recarregar();
+  }catch(e){setErro(e.message);setEditP(null)}};
+  const salvarEditH=async(f)=>{try{
+    await atualizar("hidr_leituras",editH.id,{ponto_id:f.get("ponto_id"),data:f.get("data"),leitura_m3:Number(f.get("leitura_m3")),observacao:f.get("observacao").trim()||null});
+    setEditH(null); await recarregar();
+  }catch(e){setErro(e.message);setEditH(null)}};
+  const excluir=async(t,id,setEd)=>{ if(!window.confirm("Excluir esta leitura? Não dá pra desfazer.")) return; try{ await remover(t,id); setEd(null); await recarregar(); }catch(e){setErro(e.message);setEd(null)} };
+
   // --- métricas ---
   const totalChuva=leituras.reduce((s,x)=>s+Number(x.precipitacao_mm||0),0);
   const maiorChuva=leituras.reduce((m,x)=>Math.max(m,Number(x.precipitacao_mm||0)),0);
@@ -69,8 +88,8 @@ export function Pluviometria({onSair,nome}) {
         <Campo label="Precipitação (mm)"><input name="precipitacao_mm" type="number" min="0" step=".01" required style={S.input}/></Campo>
         <Campo label="Observação" wide><input name="observacao" style={S.input}/></Campo>
       </Form>
-      <Titulo>Histórico de medições</Titulo>
-      <Tabela rows={leituras} cols={[["data","Data"],["hora","Hora",x=>(x.hora||"").slice(0,5)],["ponto","Ponto",x=>pontoPorId[x.ponto_id]?.nome||"—"],["precipitacao_mm","Chuva",x=><b>{num(x.precipitacao_mm)} mm</b>],["responsavel","Responsável"],["observacao","Observação"]]}/>
+      <Titulo>Histórico de medições <span style={{fontSize:11,fontWeight:400,color:C.muted,textTransform:"none",letterSpacing:0}}>· clique numa linha para editar</span></Titulo>
+      <Tabela onRow={setEditP} rows={leituras} cols={[["data","Data"],["hora","Hora",x=>(x.hora||"").slice(0,5)],["ponto","Ponto",x=>pontoPorId[x.ponto_id]?.nome||"—"],["precipitacao_mm","Chuva",x=><b>{num(x.precipitacao_mm)} mm</b>],["responsavel","Responsável"],["observacao","Observação"]]}/>
     </>}
 
     {tab==="hidr"&&<><Titulo>Nova leitura de hidrômetro</Titulo>
@@ -81,8 +100,8 @@ export function Pluviometria({onSair,nome}) {
         <Campo label="Observação" wide><input name="observacao" style={S.input}/></Campo>
       </Form>
       {!hidros.filter(x=>x.ativo).length&&<div style={{fontSize:13,color:C.muted,margin:"6px 2px"}}>Cadastre um hidrômetro na aba <b>Cadastros</b> primeiro.</div>}
-      <Titulo>Histórico de leituras</Titulo>
-      <Tabela rows={hleituras} cols={[["data","Data"],["ponto","Hidrômetro",x=>hidroPorId[x.ponto_id]?.nome||"—"],["leitura_m3","Leitura",x=><b>{num(x.leitura_m3)} m³</b>],["consumo","Consumo",x=>consumo[x.id]==null?"—":<b style={{color:C.brand}}>{num(consumo[x.id])} m³</b>],["responsavel","Responsável"],["observacao","Observação"]]}/>
+      <Titulo>Histórico de leituras <span style={{fontSize:11,fontWeight:400,color:C.muted,textTransform:"none",letterSpacing:0}}>· clique numa linha para editar</span></Titulo>
+      <Tabela onRow={setEditH} rows={hleituras} cols={[["data","Data"],["ponto","Hidrômetro",x=>hidroPorId[x.ponto_id]?.nome||"—"],["leitura_m3","Leitura",x=><b>{num(x.leitura_m3)} m³</b>],["consumo","Consumo",x=>consumo[x.id]==null?"—":<b style={{color:C.brand}}>{num(consumo[x.id])} m³</b>],["responsavel","Responsável"],["observacao","Observação"]]}/>
     </>}
 
     {tab==="cadastros"&&<>
@@ -120,5 +139,36 @@ export function Pluviometria({onSair,nome}) {
       <Titulo acao={<button style={S.btn} onClick={()=>csv("hidrometro.csv",[["Data","Hidrômetro","Leitura (m³)","Consumo (m³)","Responsável","Observação"],...hleituras.map(x=>[x.data,hidroPorId[x.ponto_id]?.nome,x.leitura_m3,consumo[x.id]==null?"":consumo[x.id],x.responsavel,x.observacao])])}>Baixar CSV</button>}>Consumo por hidrômetro</Titulo>
       <Tabela rows={porHidro} cols={[["nome","Hidrômetro"],["leituras","Leituras"],["ultima","Última leitura",x=>x.ultima==null?"—":num(x.ultima)+" m³"],["consumo","Consumo no período",x=><b>{num(x.consumo)} m³</b>]]}/>
     </>}
+
+    {editP&&<Modal onFechar={()=>setEditP(null)}>
+      <h3 style={{margin:"0 0 12px",color:C.brand,fontSize:16}}>Editar medição de chuva</h3>
+      <form onSubmit={e=>{e.preventDefault();salvarEditP(new FormData(e.currentTarget))}} style={{display:"flex",flexDirection:"column",gap:12}}>
+        <Campo label="Ponto"><select name="ponto_id" defaultValue={editP.ponto_id} required style={S.input}>{pontos.map(x=><option key={x.id} value={x.id}>{x.codigo?x.codigo+" · ":""}{x.nome}</option>)}</select></Campo>
+        <Campo label="Data"><input name="data" type="date" defaultValue={editP.data} required style={S.input}/></Campo>
+        <Campo label="Hora"><input name="hora" type="time" defaultValue={(editP.hora||"07:00").slice(0,5)} required style={S.input}/></Campo>
+        <Campo label="Precipitação (mm)"><input name="precipitacao_mm" type="number" min="0" step=".01" defaultValue={editP.precipitacao_mm} required style={S.input}/></Campo>
+        <Campo label="Observação"><input name="observacao" defaultValue={editP.observacao||""} style={S.input}/></Campo>
+        <div style={{display:"flex",gap:10,marginTop:4,flexWrap:"wrap"}}>
+          <button style={S.btn}>Salvar</button>
+          <button type="button" style={S.btn2} onClick={()=>setEditP(null)}>Cancelar</button>
+          <button type="button" style={{...S.danger,marginLeft:"auto"}} onClick={()=>excluir("pluv_leituras",editP.id,setEditP)}>Excluir</button>
+        </div>
+      </form>
+    </Modal>}
+
+    {editH&&<Modal onFechar={()=>setEditH(null)}>
+      <h3 style={{margin:"0 0 12px",color:C.brand,fontSize:16}}>Editar leitura de hidrômetro</h3>
+      <form onSubmit={e=>{e.preventDefault();salvarEditH(new FormData(e.currentTarget))}} style={{display:"flex",flexDirection:"column",gap:12}}>
+        <Campo label="Hidrômetro"><select name="ponto_id" defaultValue={editH.ponto_id} required style={S.input}>{hidros.map(x=><option key={x.id} value={x.id}>{x.codigo?x.codigo+" · ":""}{x.nome}</option>)}</select></Campo>
+        <Campo label="Data"><input name="data" type="date" defaultValue={editH.data} required style={S.input}/></Campo>
+        <Campo label="Leitura do relógio (m³)"><input name="leitura_m3" type="number" min="0" step=".001" defaultValue={editH.leitura_m3} required style={S.input}/></Campo>
+        <Campo label="Observação"><input name="observacao" defaultValue={editH.observacao||""} style={S.input}/></Campo>
+        <div style={{display:"flex",gap:10,marginTop:4,flexWrap:"wrap"}}>
+          <button style={S.btn}>Salvar</button>
+          <button type="button" style={S.btn2} onClick={()=>setEditH(null)}>Cancelar</button>
+          <button type="button" style={{...S.danger,marginLeft:"auto"}} onClick={()=>excluir("hidr_leituras",editH.id,setEditH)}>Excluir</button>
+        </div>
+      </form>
+    </Modal>}
   </Shell>;
 }

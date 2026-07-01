@@ -19,6 +19,7 @@ export const ok=async p=>{const {data,error}=await p;if(error)throw error;return
 export const listar=(t,ordem="criado_em")=>ok(sb.from(t).select("*").order(ordem,{ascending:false}));
 export const inserir=(t,v)=>ok(sb.from(t).insert(v).select().single());
 export const atualizar=(t,id,v)=>ok(sb.from(t).update(v).eq("id",id).select().single());
+export const remover=(t,id)=>ok(sb.from(t).delete().eq("id",id));
 export const rpc=(nome,args)=>ok(sb.rpc(nome,args));
 export const csv=(nome,rows)=>{
   const esc=v=>'"'+String(v??"").replace(/"/g,'""')+'"';
