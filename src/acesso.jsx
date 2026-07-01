@@ -34,7 +34,7 @@ export function Login({ onEntrar }) {
     <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
       <form onSubmit={entrar} style={{ background:C.card, border:"1px solid "+C.line, borderRadius:16, boxShadow:SH2, padding:"30px 28px", width:"100%", maxWidth:380, display:"flex", flexDirection:"column", gap:14 }}>
         <div style={{ textAlign:"center", marginBottom:4 }}>
-          {logo && <img src={logo} alt="Sementes Veneza" style={{ height:70, marginBottom:10 }} />}
+          {logo && <img src={logo} alt="Sementes Veneza" style={{ height:70, display:"block", margin:"0 auto 10px" }} />}
           <div style={{ fontSize:10, letterSpacing:2, textTransform:"uppercase", color:C.accent, fontWeight:700 }}>Sementes Veneza</div>
           <h1 style={{ fontFamily:SERIF, fontSize:22, margin:"2px 0 0", color:C.brand, fontWeight:600 }}>Central de aplicativos</h1>
         </div>
