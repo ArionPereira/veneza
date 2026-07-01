@@ -132,6 +132,8 @@ export function Restaurante({ nome, onSair }) {
   const copiarSemana      = (origemISO,destinoISO,tipos) => { if(!origemISO||!destinoISO)return; const os=segDe(origemISO),ds=segDe(destinoISO); setCardapio(c=>{ const nc={...c}; for(let i=0;i<7;i++){ const od=addDias(os,i),dd=addDias(ds,i); const src=c[od]; if(!src)continue; const destDia={...(nc[dd]||{})}; Object.keys(src).forEach(rid=>{ if(tipos&&tipos.length&&!tipos.includes(rid))return; destDia[rid]={pratos:(src[rid].pratos||[]).slice(),previsto:src[rid].previsto,realizado:null,custoCong:null}; }); nc[dd]=destDia; } return nc; }); agendarSave(); };
   const copiarDiaIntervalo= (origem,deISO,ateISO,tipos) => { if(!origem||!deISO)return; const ate=(ateISO&&ateISO>=deISO)?ateISO:deISO; setCardapio(c=>{ const src=c[origem]; if(!src)return c; const nc={...c}; let d=deISO,g=0; while(d<=ate&&g<400){ if(d!==origem){ const destDia={...(nc[d]||{})}; Object.keys(src).forEach(rid=>{ if(tipos&&tipos.length&&!tipos.includes(rid))return; destDia[rid]={pratos:(src[rid].pratos||[]).slice(),previsto:src[rid].previsto,realizado:null,custoCong:null}; }); nc[d]=destDia; } d=addDias(d,1); g++; } return nc; }); agendarSave(); };
   const setEstoqueItem    = (id,v) => { setEstoque(e=>({...e,[id]:v})); agendarSave(); };
+  // aplica uma proposta gerada (IA/local): {data:{refId:{pratos,previsto}}}
+  const aplicarCardapioGerado = (plano,sobrescrever) => { setCardapio(c=>{ const nc={...c}; Object.keys(plano||{}).forEach(data=>{ const dia={...(nc[data]||{})}; Object.keys(plano[data]).forEach(refId=>{ const jaTem=dia[refId]&&dia[refId].pratos&&dia[refId].pratos.length; if(jaTem&&!sobrescrever)return; dia[refId]={pratos:(plano[data][refId].pratos||[]).slice(),previsto:plano[data][refId].previsto??previstoPadrao,realizado:null,custoCong:null}; }); nc[data]=dia; }); return nc; }); agendarSave(); };
 
   // ---- cálculos de custo ----
   const insumoMap        = useMemo(()=>{ const m={}; insumos.forEach(i=>m[i.id]=i); return m; },[insumos]);
@@ -149,7 +151,7 @@ export function Restaurante({ nome, onSair }) {
       <Header tab={tab} setTab={setTab} onSair={onSair}/>
       {erro && <div style={{maxWidth:1080,margin:"0 auto 12px",padding:"10px 14px",background:"#FBEAE3",border:"1px solid "+C.clay,borderRadius:10,color:C.clay,fontSize:13}}>Erro: {erro}</div>}
       <main style={{maxWidth:1080,margin:"0 auto",padding:"0 20px"}}>
-        {tab==="cardapio"  && <Calendario {...{cardapio,pratos,pratoMap,custoPrato,custoPratosLista,tiposRefeicao,addPratoMeal,removePratoMeal,ativarRefDia,removerRefDia,setPrevisto,setRealizado,copiarDia,copiarDiaIntervalo,limparDia,limparDias,trocarDias,copiarSemana,recalcularDia,segDe}}/>}
+        {tab==="cardapio"  && <Calendario {...{cardapio,pratos,pratoMap,custoPrato,custoPratosLista,tiposRefeicao,addPratoMeal,removePratoMeal,ativarRefDia,removerRefDia,setPrevisto,setRealizado,copiarDia,copiarDiaIntervalo,limparDia,limparDias,trocarDias,copiarSemana,recalcularDia,segDe,insumoMap,estoque,previstoPadrao,aplicarCardapioGerado}}/>}
         {tab==="custos"    && <Custos     {...{insumos,insumoMap,pratos,custoLinha,custoPrato,updateInsumo,addInsumo,removeInsumo,ceasa,setCeasa,updatePrato,addPrato,removePrato,addLinha,updateLinha,removeLinha}}/>}
         {tab==="operacao"  && <Operacao   {...{cardapio,pratoMap,custoPrato,custoPratosLista,tiposRefeicao,insumos,insumoMap,estoque,setEstoqueItem}}/>}
         {tab==="painel"    && <Painel     {...{cardapio,pratoMap,insumoMap,custoPrato,custoPratosLista,tiposRefeicao,insumos}}/>}

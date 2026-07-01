@@ -11,6 +11,7 @@ const CONFIG = {
   SUPABASE_ANON: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVuZHZnYWN4aG1hd2lmY2Zwa252Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0ODM0MTMsImV4cCI6MjA5ODA1OTQxM30.h7sqWylkkwa6e1LHppVEXs3TeuFg-9DmOBTSi1A4My0",
   CHAVE: "cardapio-refeitorio-veneza",
   AI_PRICE_URL: "https://undvgacxhmawifcfpknv.supabase.co/functions/v1/sugerir-preco",
+  AI_MENU_URL: "https://undvgacxhmawifcfpknv.supabase.co/functions/v1/sugerir-cardapio",
 };
 
 const CSS = `
@@ -90,6 +91,7 @@ const html = `<!doctype html>
   window.CHAVE = "${CONFIG.CHAVE}";
   window.LOGO = "${logo}";
   window.AI_PRICE_URL = "${CONFIG.AI_PRICE_URL}";
+  window.AI_MENU_URL = "${CONFIG.AI_MENU_URL}";
 </script>
 <script>
 ${bundle}

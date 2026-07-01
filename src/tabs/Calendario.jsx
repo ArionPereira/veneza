@@ -2,6 +2,7 @@ import React from "react";
 const { useState, useEffect } = React;
 import { C, SERIF, SH, SH2, CATEGORIAS, brl, num } from "../constants.js";
 import { NOMES3, MESES, iso, fromISO, hojeISO, addDias, wdDe, fmtData, fmtDataLonga, confirmarExcluir } from "../dates.js";
+import { GerarCardapioModal } from "./GerarCardapio.jsx";
 
 // ---------------------------------------------------------------------------
 // MealEditor
@@ -232,8 +233,10 @@ function EditorDia({sel, cardapio, tiposRefeicao, pratos, pratoMap, custoPrato, 
 // Calendario (exportado)
 // ---------------------------------------------------------------------------
 
-export function Calendario({cardapio, pratos, pratoMap, custoPrato, custoPratosLista, tiposRefeicao, addPratoMeal, removePratoMeal, ativarRefDia, removerRefDia, setPrevisto, setRealizado, copiarDia, copiarDiaIntervalo, limparDia, limparDias, trocarDias, copiarSemana, recalcularDia, segDe}) {
+export function Calendario({cardapio, pratos, pratoMap, custoPrato, custoPratosLista, tiposRefeicao, addPratoMeal, removePratoMeal, ativarRefDia, removerRefDia, setPrevisto, setRealizado, copiarDia, copiarDiaIntervalo, limparDia, limparDias, trocarDias, copiarSemana, recalcularDia, segDe, insumoMap, estoque, previstoPadrao, aplicarCardapioGerado}) {
   const hoje = hojeISO(); const ini = fromISO(hoje);
+  const [showGerar, setShowGerar] = useState(false);
+  const iaUrl = (typeof window !== "undefined" && window.AI_MENU_URL) || "";
   const [ano, setAno] = useState(ini.getFullYear());
   const [mes, setMes] = useState(ini.getMonth());
   const [sel, setSel] = useState(hoje);
@@ -287,6 +290,10 @@ export function Calendario({cardapio, pratos, pratoMap, custoPrato, custoPratosL
         </div>
         {!modo && (
           <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:12}}>
+            <button onClick={()=>setShowGerar(true)}
+              style={{border:"none",background:C.brand,color:"#fff",borderRadius:8,padding:"6px 12px",cursor:"pointer",fontSize:12,fontWeight:600}}>
+              ✨ Gerar cardápio
+            </button>
             <button onClick={()=>entrarModo("trocar")}
               style={{border:"1px solid "+C.brand2,background:"transparent",color:C.brand,borderRadius:8,padding:"6px 12px",cursor:"pointer",fontSize:12}}>
               ⇄ Trocar 2 dias
@@ -371,5 +378,11 @@ export function Calendario({cardapio, pratos, pratoMap, custoPrato, custoPratosL
           recalcularDia={recalcularDia} segDe={segDe}/>
       </div>
     </div>
+    {showGerar && <GerarCardapioModal
+      cardapio={cardapio} pratos={pratos} pratoMap={pratoMap} custoPrato={custoPrato}
+      insumoMap={insumoMap} estoque={estoque} tiposRefeicao={tiposRefeicao}
+      previstoPadrao={previstoPadrao} iaUrl={iaUrl}
+      onAplicar={(plano,sobrescrever)=>aplicarCardapioGerado(plano,sobrescrever)}
+      onFechar={()=>setShowGerar(false)}/>}
   </>);
 }
