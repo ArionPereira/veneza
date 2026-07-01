@@ -150,7 +150,14 @@ delete from public.alm_inventario_itens a using public.alm_inventario_itens b
   where a.inventario_id=b.inventario_id and a.item_id=b.item_id and a.ctid<b.ctid;
 create unique index if not exists alm_inventario_itens_inv_item_key on public.alm_inventario_itens(inventario_id,item_id);
 
-alter table public.alm_inventario_itens add column if not exists diferenca numeric not null default 0;
+-- "diferenca" pode ser uma coluna gerada (generated) no banco. Só criamos a
+-- coluna (também como gerada) caso ainda não exista; nunca escrevemos nela.
+do $$ begin
+  if not exists (select 1 from information_schema.columns where table_schema='public' and table_name='alm_inventario_itens' and column_name='diferenca') then
+    alter table public.alm_inventario_itens
+      add column diferenca numeric generated always as (contagem_fisica - saldo_sistema) stored;
+  end if;
+end $$;
 
 create or replace function public.alm_abrir_inventario(
   p_data date default current_date, p_responsavel text default null, p_observacao text default null
@@ -161,11 +168,10 @@ begin
   insert into public.alm_inventarios(data,status,responsavel,observacao)
   values(coalesce(p_data,current_date),'aberto',nullif(trim(p_responsavel),''),nullif(trim(p_observacao),''))
   returning id into v_id;
-  insert into public.alm_inventario_itens(inventario_id,item_id,saldo_sistema,contagem_fisica,diferenca)
+  insert into public.alm_inventario_itens(inventario_id,item_id,saldo_sistema,contagem_fisica)
   select v_id,i.id,
     coalesce(sum(case when m.tipo='entrada' then m.quantidade else -m.quantidade end),0),
-    greatest(coalesce(sum(case when m.tipo='entrada' then m.quantidade else -m.quantidade end),0),0),
-    0
+    greatest(coalesce(sum(case when m.tipo='entrada' then m.quantidade else -m.quantidade end),0),0)
   from public.alm_itens i
   left join public.alm_movimentacoes m on m.item_id=i.id
   where i.ativo
@@ -175,11 +181,10 @@ begin
 end $$;
 
 -- preenche retroativamente os inventários já abertos que ficaram sem itens
-insert into public.alm_inventario_itens(inventario_id,item_id,saldo_sistema,contagem_fisica,diferenca)
+insert into public.alm_inventario_itens(inventario_id,item_id,saldo_sistema,contagem_fisica)
 select inv.id,i.id,
   coalesce(sum(case when m.tipo='entrada' then m.quantidade else -m.quantidade end),0),
-  greatest(coalesce(sum(case when m.tipo='entrada' then m.quantidade else -m.quantidade end),0),0),
-  0
+  greatest(coalesce(sum(case when m.tipo='entrada' then m.quantidade else -m.quantidade end),0),0)
 from public.alm_inventarios inv
 cross join public.alm_itens i
 left join public.alm_movimentacoes m on m.item_id=i.id
@@ -194,7 +199,7 @@ declare v_item public.alm_inventario_itens;
 begin
   if p_contagem < 0 then raise exception 'A contagem não pode ser negativa'; end if;
   update public.alm_inventario_itens ii
-  set contagem_fisica=p_contagem,diferenca=p_contagem-ii.saldo_sistema
+  set contagem_fisica=p_contagem
   from public.alm_inventarios inv
   where ii.id=p_inventario_item_id and inv.id=ii.inventario_id and inv.status='aberto'
   returning ii.* into v_item;
