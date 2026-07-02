@@ -9,6 +9,7 @@ export const MODULOS = [
   { id:"abastecimento", nome:"Abastecimento", icone:"⛽", descricao:"Frota, tanques, abastecimentos, consumo e custos de combustível.", ativo:true },
   { id:"almoxarifado", nome:"Estoque e Almoxarifado", icone:"📦", descricao:"Itens, entradas, saídas, inventários e controle de estoque mínimo.", ativo:true },
   { id:"chorei", nome:"Chōrei · Reuniões diárias", icone:"🗣️", descricao:"Reunião curta de 15 min por equipe (PCP, Almoxarifado, ADM): dificuldades, plano do dia, pendências com dono e prazo.", ativo:true },
+  { id:"ponto", nome:"Ponto · Apuração", icone:"⏱️", descricao:"Sobe o Excel do ponto e apura jornada: horas extras, débito, marcações faltando, intra/interjornada e tolerância CLT.", ativo:true },
 ];
 
 function Card({mod,liberado,onSelect}) {
