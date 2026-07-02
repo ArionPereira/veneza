@@ -76,7 +76,15 @@ export function Chorei({ onSair, sessao }) {
         onSair={onSair}
       />
 
-      {erro && (
+      {erro && /schema cache|could not find the table|chorei_/i.test(erro) ? (
+        <div style={{ maxWidth:1080, margin:"16px auto", padding:"18px 20px",
+          background:C.sage, border:"1px solid "+C.brand2, borderRadius:12, color:C.ink, fontSize:14 }}>
+          <div style={{ fontWeight:700, color:C.brand, fontSize:15, marginBottom:6 }}>⚙ Módulo ainda não configurado</div>
+          As tabelas do Chōrei não existem no banco. Para ativar, rode uma vez no Supabase (SQL Editor) o arquivo{" "}
+          <b>sql/chorei_v1.sql</b> — ele cria as tabelas e já cadastra as equipes PCP, Almoxarifado e ADM.
+          Depois é só recarregar esta página.
+        </div>
+      ) : erro && (
         <div style={{ maxWidth:1080, margin:"0 auto 12px", padding:"10px 14px",
           background:"#FBEAE3", border:"1px solid "+C.clay, borderRadius:10, color:C.clay, fontSize:13 }}>
           Erro: {erro}
