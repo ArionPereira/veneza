@@ -12,7 +12,7 @@ export function Relatorio({cardapio, pratoMap, custoPratosLista, tiposRefeicao})
 
   const nomeTipo = (id) => { const t=tiposRefeicao.find(x=>x.id===id); return t?t.nome:id; };
   const mainNome = (pratos) => {
-    const m = (pratos||[]).map(id=>pratoMap[id]).filter(p=>p&&p.categoria==="Prato principal").map(p=>p.nome);
+    const m = (pratos||[]).map(id=>pratoMap[id]).filter(p=>p&&p.categoria==="Proteína").map(p=>p.nome);
     return m.join(", ")||"—";
   };
 
@@ -169,7 +169,7 @@ export function Relatorio({cardapio, pratoMap, custoPratosLista, tiposRefeicao})
         <thead><tr style={{background:C.sage}}>
           <th style={{...cell,textAlign:"left",fontWeight:700}}>Data</th>
           <th style={{...cell,textAlign:"left",fontWeight:700}}>Refeição</th>
-          <th style={{...cell,textAlign:"left",fontWeight:700}}>Prato principal</th>
+          <th style={{...cell,textAlign:"left",fontWeight:700}}>Proteína</th>
           <th style={{...cell,textAlign:"right",fontWeight:700}}>Prev.</th>
           <th style={{...cell,textAlign:"right",fontWeight:700}}>Real.</th>
           <th style={{...cell,textAlign:"right",fontWeight:700}}>Custo</th>

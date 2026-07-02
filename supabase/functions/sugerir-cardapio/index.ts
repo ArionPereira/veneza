@@ -25,19 +25,25 @@ Deno.serve(async (req) => {
     if (!key) return json({ erro: "DEEPSEEK_API_KEY não configurada no Supabase" }, 500);
 
     const body = await req.json();
-    const { pratos = [], estoque = [], datas = [], refeicoes = [], categorias = [], pessoas = 100, regras = {}, proposta_local = {} } = body || {};
+    const { pratos = [], estoque = [], datas = [], refeicoes = [], pessoas = 100, plano_refeicao = {}, regras = {}, proposta_local = {} } = body || {};
     if (!pratos.length || !datas.length || !refeicoes.length) return json({ erro: "Dados insuficientes (pratos/datas/refeições)." }, 400);
 
     const sys = [
       "Você é um nutricionista de refeitório industrial no Brasil.",
       "Monte um cardápio escolhendo pratos APENAS do catálogo fornecido (use os campos id).",
+      "REGRA DE ESTRUTURA (obrigatória por refeição, siga o campo plano_refeicao):",
+      "  - 'Proteína': escolha EXATAMENTE 1 prato dessa categoria por refeição.",
+      "  - 'Base': inclua TODAS as bases ativas (arroz, feijão etc.); elas repetem em toda refeição.",
+      "  - 'Guarnição': escolha o número informado (1 ou 2) por refeição.",
+      "  - 'Salada': escolha o número informado (1 ou 2) por refeição.",
+      "  - 'Sobremesa'/'Bebida': se pedidas, escolha 1 por refeição; se não, não inclua.",
       "Cada prato tem um campo 'refeicoes': se for uma lista de ids (ex.: [\"cafe\"]), o prato SÓ PODE ser usado nessas refeições; se for a string \"todas\", pode ser usado em qualquer refeição pedida. NUNCA coloque um prato marcado para 'cafe' (café da manhã) no almoço ou na janta, e vice-versa.",
-      "Para cada data e cada refeição, escolha no máximo um prato de cada categoria pedida.",
-      "Regras: se priorizar_custo, prefira pratos de menor custo; se priorizar_estoque, prefira pratos cujos ingredientes estejam no estoque; evite repetir o mesmo prato dentro de nao_repetir_dias; varie as proteínas entre os dias.",
+      "NUNCA misture categorias (proteína no lugar de guarnição, salada no lugar de proteína etc.). Respeite estritamente o campo 'categoria' de cada prato.",
+      "Regras de preferência: se priorizar_custo, prefira pratos de menor custo; se priorizar_estoque, prefira pratos cujos ingredientes estejam no estoque; evite repetir o mesmo prato dentro de nao_repetir_dias (exceto a categoria 'Base', que sempre repete); varie as proteínas entre os dias.",
       "Responda ESTRITAMENTE em JSON no formato: {\"plano\": {\"YYYY-MM-DD\": {\"refId\": [\"pratoId\", ...] } } }. Sem texto fora do JSON.",
     ].join(" ");
 
-    const user = JSON.stringify({ catalogo_pratos: pratos, estoque, pessoas, datas, refeicoes, categorias, regras, proposta_local });
+    const user = JSON.stringify({ catalogo_pratos: pratos, estoque, pessoas, datas, refeicoes, plano_refeicao, regras, proposta_local });
 
     const resp = await fetch("https://api.deepseek.com/chat/completions", {
       method: "POST",

@@ -27,8 +27,8 @@ export function Mural({cardapio, pratoMap, tiposRefeicao}) {
             {!temAlgo && <div style={{fontSize:13,color:C.muted}}>Sem refeição</div>}
             {ativos.map(t=>{
               const r = dia[t.id]; if(!r||!r.pratos.length) return null;
-              const princ = r.pratos.map(id=>pratoMap[id]).filter(p=>p&&p.categoria==="Prato principal");
-              const resto = r.pratos.map(id=>pratoMap[id]).filter(p=>p&&p.categoria!=="Prato principal");
+              const princ = r.pratos.map(id=>pratoMap[id]).filter(p=>p&&p.categoria==="Proteína");
+              const resto = r.pratos.map(id=>pratoMap[id]).filter(p=>p&&p.categoria!=="Proteína");
               return (
                 <div key={t.id} style={{marginBottom:12}}>
                   <div style={{fontSize:11,letterSpacing:1,textTransform:"uppercase",color:C.accent2,fontWeight:700,marginBottom:3}}>{t.nome}</div>

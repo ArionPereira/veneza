@@ -13,7 +13,7 @@ export const SH  = "0 1px 2px rgba(16,42,67,.04), 0 2px 6px rgba(16,42,67,.06)";
 export const SH2 = "0 4px 14px rgba(16,42,67,.10)";
 
 export const DIAS      = ["Segunda","Terça","Quarta","Quinta","Sexta"];
-export const CATEGORIAS = ["Prato principal","Guarnição","Acompanhamento","Salada","Sobremesa","Bebida"];
+export const CATEGORIAS = ["Proteína","Base","Guarnição","Salada","Sobremesa","Bebida"];
 
 export const brl = (n) => "R$ " + (Number(n)||0).toFixed(2).replace(".", ",");
 export const num = (n) => (Number(n)||0).toLocaleString("pt-BR");

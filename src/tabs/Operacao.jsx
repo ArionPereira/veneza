@@ -115,7 +115,7 @@ export function Operacao({cardapio, pratoMap, custoPrato, custoPratosLista, tipo
             <span style={{fontVariantNumeric:"tabular-nums",color:C.muted}}>{brl(porCat[cat])} · {((porCat[cat]/totalAlimento)*100||0).toFixed(0)}%</span>
           </div>
           <div style={{height:10,background:C.sage,borderRadius:6,overflow:"hidden"}}>
-            <div style={{width:(porCat[cat]/maxCat)*100+"%",height:"100%",background:cat==="Prato principal"?C.brand:C.accent}}/>
+            <div style={{width:(porCat[cat]/maxCat)*100+"%",height:"100%",background:cat==="Proteína"?C.brand:C.accent}}/>
           </div>
         </div>
       ))}

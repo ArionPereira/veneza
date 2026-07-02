@@ -5,9 +5,9 @@ import { hojeISO, addDias, iso, fromISO, fmtData, NOMES3, wdDe, intervalo } from
 import { Stat } from "../ui.jsx";
 
 const CORES_CAT = {
-  "Prato principal": C.brand,
+  "Proteína":        C.brand,
+  "Base":            C.accent,
   "Guarnição":       C.brand2,
-  "Acompanhamento":  C.accent,
   "Salada":          "#7CC24B",
   "Sobremesa":       C.wheat,
   "Bebida":          C.clay,
