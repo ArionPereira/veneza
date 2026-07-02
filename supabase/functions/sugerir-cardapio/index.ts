@@ -42,7 +42,7 @@ Deno.serve(async (req) => {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": "Bearer " + key },
       body: JSON.stringify({
-        model: "deepseek-chat",
+        model: "deepseek-v4-flash", // rápido/barato; troque por "deepseek-v4-pro" se quiser o modelo maior
         temperature: 0.4,
         response_format: { type: "json_object" },
         messages: [{ role: "system", content: sys }, { role: "user", content: user }],
