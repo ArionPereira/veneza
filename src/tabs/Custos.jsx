@@ -8,9 +8,11 @@ import { PrecoCeasaCell, AtualizarCeasa, RefCarnes, ConsultaCeasa } from "../cea
 // FichaCard
 // ---------------------------------------------------------------------------
 
-function FichaCard({prato, insumos, insumoMap, custoLinha, custoPrato, inp, hiName, updatePrato, removePrato, addLinha, updateLinha, removeLinha}) {
+function FichaCard({prato, insumos, insumoMap, custoLinha, custoPrato, inp, hiName, updatePrato, removePrato, addLinha, updateLinha, removeLinha, tiposRefeicao=[]}) {
   const [open, setOpen] = useState(false);
   const total = custoPrato(prato);
+  const refsDoPrato = prato.refeicoes || []; // vazio = serve todas as refeições
+  const togRef = (id) => { const atual = prato.refeicoes || []; const nova = atual.includes(id) ? atual.filter(x=>x!==id) : [...atual, id]; updatePrato(prato.id, "refeicoes", nova); };
   return (
     <div style={{background:C.card,border:"1px solid "+C.line,borderRadius:12,overflow:"hidden",boxShadow:SH}}>
       <div style={{display:"flex",alignItems:"center",gap:10,padding:"12px 14px",background:C.sage,borderBottom:open?"1px solid "+C.line:"none",flexWrap:"wrap"}}>
@@ -59,6 +61,19 @@ function FichaCard({prato, insumos, insumoMap, custoLinha, custoPrato, inp, hiNa
             style={{marginTop:8,background:"transparent",color:C.brand,border:"1px dashed "+C.brand2,borderRadius:8,padding:"6px 12px",fontSize:13,cursor:"pointer"}}>
             + ingrediente
           </button>
+          {tiposRefeicao.length>0 && (
+            <div style={{marginTop:12,paddingTop:10,borderTop:"1px solid "+C.line}}>
+              <div style={{fontSize:11,color:C.muted,fontWeight:600,marginBottom:6}}>Serve em quais refeições? <span style={{fontWeight:400}}>(nenhuma marcada = serve em todas)</span></div>
+              <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                {tiposRefeicao.map(t=>{ const on = refsDoPrato.includes(t.id); return (
+                  <button key={t.id} type="button" onClick={()=>togRef(t.id)}
+                    style={{border:"1px solid "+(on?C.brand:C.line),background:on?C.brand:C.card,color:on?"#fff":C.muted,borderRadius:20,padding:"5px 11px",fontSize:12,fontWeight:600,cursor:"pointer"}}>
+                    {t.nome}
+                  </button>
+                ); })}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -71,7 +86,7 @@ function FichaCard({prato, insumos, insumoMap, custoLinha, custoPrato, inp, hiNa
 
 const normBusca = (s) => (s||"").toString().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").trim();
 
-export function Custos({insumos, insumoMap, pratos, custoLinha, custoPrato, updateInsumo, addInsumo, removeInsumo, ceasa, setCeasa, updatePrato, addPrato, removePrato, addLinha, updateLinha, removeLinha}) {
+export function Custos({insumos, insumoMap, pratos, custoLinha, custoPrato, updateInsumo, addInsumo, removeInsumo, ceasa, setCeasa, updatePrato, addPrato, removePrato, addLinha, updateLinha, removeLinha, tiposRefeicao=[]}) {
   const [view, setView] = useState("fichas");
   const [busca, setBusca] = useState("");
   const inp  = {border:"1px solid "+C.line,borderRadius:6,padding:"6px 8px",fontSize:14,background:C.paper,color:C.ink};
@@ -157,7 +172,8 @@ export function Custos({insumos, insumoMap, pratos, custoLinha, custoPrato, upda
           <FichaCard key={p.id} prato={p} insumos={insumos} insumoMap={insumoMap}
             custoLinha={custoLinha} custoPrato={custoPrato} inp={inp} hiName={hiName}
             updatePrato={updatePrato} removePrato={removePrato}
-            addLinha={addLinha} updateLinha={updateLinha} removeLinha={removeLinha}/>
+            addLinha={addLinha} updateLinha={updateLinha} removeLinha={removeLinha}
+            tiposRefeicao={tiposRefeicao}/>
         ))}
         {pratosFiltrados.length===0 && <p style={{fontSize:13,color:C.muted}}>Nenhum prato com "{busca}".</p>}
       </div>

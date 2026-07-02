@@ -152,7 +152,7 @@ export function Restaurante({ nome, onSair }) {
       {erro && <div style={{maxWidth:1080,margin:"0 auto 12px",padding:"10px 14px",background:"#FBEAE3",border:"1px solid "+C.clay,borderRadius:10,color:C.clay,fontSize:13}}>Erro: {erro}</div>}
       <main style={{maxWidth:1080,margin:"0 auto",padding:"0 20px"}}>
         {tab==="cardapio"  && <Calendario {...{cardapio,pratos,pratoMap,custoPrato,custoPratosLista,tiposRefeicao,addPratoMeal,removePratoMeal,ativarRefDia,removerRefDia,setPrevisto,setRealizado,copiarDia,copiarDiaIntervalo,limparDia,limparDias,trocarDias,copiarSemana,recalcularDia,segDe,insumoMap,estoque,previstoPadrao,aplicarCardapioGerado}}/>}
-        {tab==="custos"    && <Custos     {...{insumos,insumoMap,pratos,custoLinha,custoPrato,updateInsumo,addInsumo,removeInsumo,ceasa,setCeasa,updatePrato,addPrato,removePrato,addLinha,updateLinha,removeLinha}}/>}
+        {tab==="custos"    && <Custos     {...{insumos,insumoMap,pratos,custoLinha,custoPrato,updateInsumo,addInsumo,removeInsumo,ceasa,setCeasa,updatePrato,addPrato,removePrato,addLinha,updateLinha,removeLinha,tiposRefeicao}}/>}
         {tab==="operacao"  && <Operacao   {...{cardapio,pratoMap,custoPrato,custoPratosLista,tiposRefeicao,insumos,insumoMap,estoque,setEstoqueItem}}/>}
         {tab==="painel"    && <Painel     {...{cardapio,pratoMap,insumoMap,custoPrato,custoPratosLista,tiposRefeicao,insumos}}/>}
         {tab==="relatorio" && <Relatorio  {...{cardapio,pratoMap,custoPratosLista,tiposRefeicao}}/>}

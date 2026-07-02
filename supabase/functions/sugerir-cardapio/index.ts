@@ -31,6 +31,7 @@ Deno.serve(async (req) => {
     const sys = [
       "Você é um nutricionista de refeitório industrial no Brasil.",
       "Monte um cardápio escolhendo pratos APENAS do catálogo fornecido (use os campos id).",
+      "Cada prato tem um campo 'refeicoes': se for uma lista de ids (ex.: [\"cafe\"]), o prato SÓ PODE ser usado nessas refeições; se for a string \"todas\", pode ser usado em qualquer refeição pedida. NUNCA coloque um prato marcado para 'cafe' (café da manhã) no almoço ou na janta, e vice-versa.",
       "Para cada data e cada refeição, escolha no máximo um prato de cada categoria pedida.",
       "Regras: se priorizar_custo, prefira pratos de menor custo; se priorizar_estoque, prefira pratos cujos ingredientes estejam no estoque; evite repetir o mesmo prato dentro de nao_repetir_dias; varie as proteínas entre os dias.",
       "Responda ESTRITAMENTE em JSON no formato: {\"plano\": {\"YYYY-MM-DD\": {\"refId\": [\"pratoId\", ...] } } }. Sem texto fora do JSON.",

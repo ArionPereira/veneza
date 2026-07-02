@@ -6,13 +6,15 @@ import { hojeISO, addDias, fromISO, fmtData, intervalo, NOMES } from "../dates.j
 // ---------------------------------------------------------------------------
 // Motor LOCAL de geração de cardápio (puro JS, sem IA):
 // prioriza menor custo e o que já tem em estoque, evita repetir prato em dias
-// próximos e monta cada refeição com um prato por categoria selecionada.
+// próximos, respeita quais refeições cada prato pode servir (ex.: pão/café só
+// no Café da manhã) e desconta do estoque o que os dias JÁ agendados vão
+// consumir, pra não prometer o mesmo insumo duas vezes.
 // ---------------------------------------------------------------------------
 
 // quantidade necessária de cada insumo (na unidade do insumo) p/ servir `pessoas`
 function necessidade(prato, insumoMap, pessoas) {
   const m = {};
-  (prato.ficha || []).forEach(l => {
+  (prato?.ficha || []).forEach(l => {
     const i = insumoMap[l.insumoId]; if (!i) return;
     const q = (Number(l.g) || 0) * pessoas / fatorUnidade(i.unidade) * (Number(i.fc) || 1);
     m[l.insumoId] = (m[l.insumoId] || 0) + q;
@@ -26,13 +28,41 @@ function cobertura(prato, insumoMap, pessoas, estoqueRest) {
   let ok = 0; ids.forEach(id => { if ((estoqueRest[id] || 0) >= need[id]) ok++; });
   return ok / ids.length;
 }
+// um prato "serve" a refeição refId? (prato.refeicoes vazio/ausente = serve todas)
+function serveRefeicao(prato, refId) {
+  const rs = prato.refeicoes;
+  return !rs || !rs.length || rs.includes(refId);
+}
 
-export function gerarCardapioLocal({ pratos, custoPrato, insumoMap, estoque, datas, refeicoes, categorias, pessoas, opts }) {
-  const estoqueRest = { ...(estoque || {}) };            // vai sendo consumido ao longo dos dias
-  const usadoEm = {};                                     // pratoId -> índice do último dia usado
+// desconta do estoque tudo que os dias JÁ agendados (fora os que serão
+// sobrescritos por esta geração) vão consumir — evita prometer 2x o mesmo insumo
+function estoqueComprometido(estoque, cardapio, pratoMap, insumoMap, datasGeradas, sobrescrever) {
+  const rest = { ...(estoque || {}) };
+  const hoje = hojeISO();
+  const seraSobrescrito = new Set(sobrescrever ? datasGeradas : []);
+  Object.keys(cardapio || {}).forEach(data => {
+    if (data < hoje) return;              // passado já está refletido no estoque atual
+    if (seraSobrescrito.has(data)) return; // este dia vai ser substituído agora, não conta
+    const dia = cardapio[data] || {};
+    Object.keys(dia).forEach(refId => {
+      const r = dia[refId];
+      (r?.pratos || []).forEach(id => {
+        const need = necessidade(pratoMap[id], insumoMap, r.previsto || 0);
+        Object.keys(need).forEach(iid => { rest[iid] = Math.max(0, (rest[iid] || 0) - need[iid]); });
+      });
+    });
+  });
+  return rest;
+}
+
+export function gerarCardapioLocal({ pratos, custoPrato, insumoMap, pratoMap, estoque, cardapio, datas, refeicoes, categorias, pessoas, opts }) {
   const naoRepetir = Math.max(0, Number(opts?.naoRepetir ?? 3));
   const wCusto   = opts?.priorizarCusto   ? 1 : 0;
   const wEstoque = opts?.priorizarEstoque ? 1 : 0;
+  const repetirJanta = !!opts?.repetirJantaNoAlmoco;
+
+  const estoqueRest = estoqueComprometido(estoque, cardapio, pratoMap || {}, insumoMap, datas, opts?.sobrescrever);
+  const usadoEm = {}; // pratoId -> índice do último dia usado
 
   // custo máximo por categoria (p/ normalizar o score de custo)
   const catMax = {};
@@ -47,9 +77,11 @@ export function gerarCardapioLocal({ pratos, custoPrato, insumoMap, estoque, dat
   datas.forEach((data, di) => {
     const dia = {};
     refeicoes.forEach(ref => {
+      // jantar espelha o almoço do mesmo dia (sobras) — não roda a escolha própria
+      if (repetirJanta && ref.id === "janta") return;
       const escolhidos = [];
       categorias.forEach(cat => {
-        let cands = pratos.filter(p => p.categoria === cat);
+        let cands = pratos.filter(p => p.categoria === cat && serveRefeicao(p, ref.id));
         if (!cands.length) return;
         // respeita "não repetir" — se sobrar alguém fora da janela, usa só esses
         const livres = cands.filter(p => usadoEm[p.id] == null || (di - usadoEm[p.id]) > naoRepetir);
@@ -74,6 +106,10 @@ export function gerarCardapioLocal({ pratos, custoPrato, insumoMap, estoque, dat
       });
       if (escolhidos.length) dia[ref.id] = { pratos: escolhidos, previsto: pessoas };
     });
+    // espelha o jantar no almoço (sem consumir estoque nem custo extra — é sobra)
+    if (repetirJanta && refeicoes.some(r => r.id === "janta") && dia.almoco) {
+      dia.janta = { pratos: dia.almoco.pratos.slice(), previsto: pessoas, sobra: true };
+    }
     if (Object.keys(dia).length) plano[data] = dia;
   });
 
@@ -86,7 +122,10 @@ export function gerarCardapioLocal({ pratos, custoPrato, insumoMap, estoque, dat
 // ---------------------------------------------------------------------------
 export async function refinarComIA({ url, anon, pratos, estoque, insumoMap, custoPrato, planoLocal, datas, refeicoes, categorias, pessoas, opts }) {
   if (!url) throw new Error("IA não configurada");
-  const catalogo = pratos.map(p => ({ id: p.id, nome: p.nome, categoria: p.categoria, custo: Number(custoPrato(p).toFixed(2)) }));
+  const catalogo = pratos.map(p => ({
+    id: p.id, nome: p.nome, categoria: p.categoria, custo: Number(custoPrato(p).toFixed(2)),
+    refeicoes: (p.refeicoes && p.refeicoes.length) ? p.refeicoes : "todas",
+  }));
   const estoqueLista = Object.keys(estoque || {}).filter(id => insumoMap[id]).map(id => ({ insumo: insumoMap[id].nome, qtd: estoque[id], unidade: insumoMap[id].unidade }));
   const r = await fetch(url, {
     method: "POST",
@@ -94,24 +133,40 @@ export async function refinarComIA({ url, anon, pratos, estoque, insumoMap, cust
     body: JSON.stringify({
       pratos: catalogo, estoque: estoqueLista,
       datas, refeicoes: refeicoes.map(x => ({ id: x.id, nome: x.nome })), categorias, pessoas,
-      regras: { priorizar_custo: !!opts?.priorizarCusto, priorizar_estoque: !!opts?.priorizarEstoque, nao_repetir_dias: opts?.naoRepetir ?? 3 },
+      regras: {
+        priorizar_custo: !!opts?.priorizarCusto, priorizar_estoque: !!opts?.priorizarEstoque,
+        nao_repetir_dias: opts?.naoRepetir ?? 3,
+        cada_prato_so_nas_refeicoes_marcadas: true,
+      },
       proposta_local: planoLocal,
     }),
   });
   const d = await r.json();
   if (!r.ok || d.erro || !d.plano) throw new Error(d.erro || ("erro " + r.status));
-  // valida: só ids de pratos existentes entram
-  const validos = new Set(pratos.map(p => p.id));
+  // valida: só ids de pratos existentes E elegíveis pra aquela refeição entram
+  const pratoPorId = Object.fromEntries(pratos.map(p => [p.id, p]));
   const plano = {};
   Object.keys(d.plano || {}).forEach(data => {
     const dia = {};
     Object.keys(d.plano[data] || {}).forEach(refId => {
-      const ids = (d.plano[data][refId] || []).filter(id => validos.has(id));
+      const ids = (d.plano[data][refId] || []).filter(id => pratoPorId[id] && serveRefeicao(pratoPorId[id], refId));
       if (ids.length) dia[refId] = { pratos: ids, previsto: pessoas };
     });
     if (Object.keys(dia).length) plano[data] = dia;
   });
   return plano;
+}
+
+// espelha o jantar no almoço em cima de QUALQUER plano (local ou IA) — sem custo/estoque extra
+function aplicarRepetirJanta(plano, refeicoes, pessoas) {
+  if (!refeicoes.some(r => r.id === "janta")) return plano;
+  const novo = {};
+  Object.keys(plano).forEach(data => {
+    const dia = { ...plano[data] };
+    if (dia.almoco) dia.janta = { pratos: dia.almoco.pratos.slice(), previsto: pessoas, sobra: true };
+    novo[data] = dia;
+  });
+  return novo;
 }
 
 // ---------------------------------------------------------------------------
@@ -132,30 +187,42 @@ export function GerarCardapioModal({ cardapio, pratos, pratoMap, custoPrato, ins
   const [pessoas, setPessoas] = useState(previstoPadrao || 100);
   const [sobrescrever, setSobrescrever] = useState(false);
   const [usarIA, setUsarIA] = useState(false);
+  const [repetirJanta, setRepetirJanta] = useState(false);
   const [proposta, setProposta] = useState(null);   // {plano, meta, fonte}
   const [busy, setBusy] = useState(false);
   const [erro, setErro] = useState("");
 
   const datas = useMemo(() => (de && ate && ate >= de ? intervalo(de, ate) : []), [de, ate]);
-  const refeicoes = tiposRefeicao.filter(t => refSel.includes(t.id));
   const anon = (typeof window !== "undefined" && window.SUPABASE_ANON) || "";
+  const temAlmoco = tiposRefeicao.some(t => t.id === "almoco");
+  const temJanta = tiposRefeicao.some(t => t.id === "janta");
+  const repetirJantaDisponivel = temAlmoco && temJanta;
 
   const tog = (arr, set, id) => set(arr.includes(id) ? arr.filter(x => x !== id) : [...arr, id]);
 
   const gerar = async () => {
     setErro("");
     if (!datas.length) { setErro("Escolha um período válido (De ≤ Até)."); return; }
-    if (!refeicoes.length) { setErro("Escolha ao menos uma refeição."); return; }
     if (!catSel.length) { setErro("Escolha ao menos uma categoria de prato."); return; }
+    let refeicoes = tiposRefeicao.filter(t => refSel.includes(t.id));
+    if (repetirJanta) {
+      if (!repetirJantaDisponivel) { setErro("Pra repetir o almoço no jantar, cadastre os tipos de refeição 'Almoço' e 'Janta'."); return; }
+      const almocoT = tiposRefeicao.find(t => t.id === "almoco"), jantaT = tiposRefeicao.find(t => t.id === "janta");
+      if (!refeicoes.some(r => r.id === "almoco")) refeicoes = [...refeicoes, almocoT];
+      if (!refeicoes.some(r => r.id === "janta")) refeicoes = [...refeicoes, jantaT];
+    }
+    if (!refeicoes.length) { setErro("Escolha ao menos uma refeição."); return; }
     setBusy(true);
-    const opts = { priorizarCusto: priorCusto, priorizarEstoque: priorEstoque, naoRepetir: Number(naoRepetir) };
-    const local = gerarCardapioLocal({ pratos, custoPrato, insumoMap, estoque, datas, refeicoes, categorias: catSel, pessoas: Number(pessoas) || 100, opts });
+    const opts = { priorizarCusto: priorCusto, priorizarEstoque: priorEstoque, naoRepetir: Number(naoRepetir), sobrescrever, repetirJantaNoAlmoco: repetirJanta };
+    const local = gerarCardapioLocal({ pratos, custoPrato, insumoMap, pratoMap, estoque, cardapio, datas, refeicoes, categorias: catSel, pessoas: Number(pessoas) || 100, opts });
     if (usarIA && iaUrl) {
       try {
-        const planoIA = await refinarComIA({ url: iaUrl, anon, pratos, estoque, insumoMap, custoPrato, planoLocal: local.plano, datas, refeicoes, categorias: catSel, pessoas: Number(pessoas) || 100, opts });
-        // recalcula meta a partir do plano da IA
+        const refeicoesParaIA = repetirJanta ? refeicoes.filter(r => r.id !== "janta") : refeicoes; // jantar é espelhado localmente, não pedimos pra IA
+        let planoIA = await refinarComIA({ url: iaUrl, anon, pratos, estoque, insumoMap, custoPrato, planoLocal: local.plano, datas, refeicoes: refeicoesParaIA, categorias: catSel, pessoas: Number(pessoas) || 100, opts });
+        if (repetirJanta) planoIA = aplicarRepetirJanta(planoIA, refeicoes, Number(pessoas) || 100);
+        // recalcula meta a partir do plano da IA (jantar-sobra não soma custo/estoque extra)
         let custoTotal = 0, inst = 0;
-        Object.values(planoIA).forEach(dia => Object.values(dia).forEach(r => r.pratos.forEach(id => { custoTotal += custoPrato(pratoMap[id]) * (Number(pessoas) || 100); inst++; })));
+        Object.values(planoIA).forEach(dia => Object.keys(dia).forEach(refId => { if (dia[refId].sobra) return; dia[refId].pratos.forEach(id => { custoTotal += custoPrato(pratoMap[id]) * (Number(pessoas) || 100); inst++; }); }));
         setProposta({ plano: planoIA, meta: { custoTotal, coberturaPct: local.meta.coberturaPct, refeicoes: inst }, fonte: "IA (DeepSeek)" });
       } catch (e) {
         setProposta({ ...local, fonte: "local (IA indisponível: " + String(e.message || e).slice(0, 50) + ")" });
@@ -177,7 +244,7 @@ export function GerarCardapioModal({ cardapio, pratos, pratoMap, custoPrato, ins
           <div style={{ fontFamily: SERIF, fontSize: 19, color: C.brand }}>Gerar cardápio</div>
           <button onClick={onFechar} style={{ background: "transparent", color: C.muted, border: "1px solid " + C.line, borderRadius: 8, padding: "6px 12px", fontSize: 13, cursor: "pointer" }}>Fechar</button>
         </div>
-        <p style={{ fontSize: 12.5, color: C.muted, margin: "0 0 14px" }}>Monta uma proposta priorizando custo e o que há em estoque. Você revê e aplica — a edição manual continua funcionando.</p>
+        <p style={{ fontSize: 12.5, color: C.muted, margin: "0 0 14px" }}>Monta uma proposta priorizando custo e o que há em estoque (já descontando o que os dias já agendados vão consumir). Você revê e aplica — a edição manual continua funcionando.</p>
 
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end" }}>
           <label style={{ fontSize: 12, color: C.muted, fontWeight: 600, display: "flex", flexDirection: "column", gap: 4 }}>De<input type="date" value={de} onChange={e => setDe(e.target.value)} style={inp} /></label>
@@ -191,11 +258,13 @@ export function GerarCardapioModal({ cardapio, pratos, pratoMap, custoPrato, ins
 
         <div style={{ fontSize: 12, color: C.muted, fontWeight: 600, margin: "14px 0 6px" }}>Categorias por refeição</div>
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>{catComPratos.map(c => <button key={c} onClick={() => tog(catSel, setCatSel, c)} style={chip(catSel.includes(c))}>{c}</button>)}</div>
+        <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>Pratos marcados pra uma refeição específica (na aba Fichas & custos) só entram nela — ex.: pão/café só aparecem no Café da manhã.</div>
 
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 14 }}>
           <button onClick={() => setPriorCusto(v => !v)} style={chip(priorCusto)}>💲 Priorizar menor custo</button>
           <button onClick={() => setPriorEstoque(v => !v)} style={chip(priorEstoque)}>📦 Preferir o que há em estoque</button>
           <button onClick={() => setSobrescrever(v => !v)} style={chip(sobrescrever)}>{sobrescrever ? "Sobrescreve dias preenchidos" : "Só preenche dias vazios"}</button>
+          <button onClick={() => repetirJantaDisponivel && setRepetirJanta(v => !v)} disabled={!repetirJantaDisponivel} title={repetirJantaDisponivel ? "" : "Cadastre os tipos 'Almoço' e 'Janta' pra habilitar"} style={{ ...chip(repetirJanta && repetirJantaDisponivel), opacity: repetirJantaDisponivel ? 1 : 0.45, cursor: repetirJantaDisponivel ? "pointer" : "not-allowed" }}>🍲 Repetir almoço no jantar (aproveita sobras)</button>
           <button onClick={() => iaUrl && setUsarIA(v => !v)} disabled={!iaUrl} title={iaUrl ? "" : "Configure a Edge Function da DeepSeek para habilitar"} style={{ ...chip(usarIA && !!iaUrl), opacity: iaUrl ? 1 : 0.45, cursor: iaUrl ? "pointer" : "not-allowed" }}>✨ Refinar com IA (DeepSeek)</button>
         </div>
         {!iaUrl && <div style={{ fontSize: 11.5, color: C.muted, marginTop: 6 }}>A IA fica disponível depois de publicar a função <code>sugerir-cardapio</code> no Supabase (o motor local já funciona sem ela).</div>}
@@ -223,7 +292,8 @@ export function GerarCardapioModal({ cardapio, pratos, pratoMap, custoPrato, ins
                     <div style={{ fontSize: 12.5, fontWeight: 700, color: C.brand }}>{NOMES[dd.getDay()]} · {fmtData(data)}</div>
                     {Object.keys(proposta.plano[data]).map(refId => {
                       const t = tiposRefeicao.find(x => x.id === refId);
-                      return <div key={refId} style={{ fontSize: 12.5, color: C.ink, marginTop: 3 }}><span style={{ color: C.muted }}>{t?.nome || refId}:</span> {nomesPratos(proposta.plano[data][refId].pratos)}</div>;
+                      const r = proposta.plano[data][refId];
+                      return <div key={refId} style={{ fontSize: 12.5, color: C.ink, marginTop: 3 }}><span style={{ color: C.muted }}>{t?.nome || refId}:</span> {nomesPratos(r.pratos)}{r.sobra ? <span style={{ color: C.muted }}> (sobra do almoço)</span> : null}</div>;
                     })}
                   </div>
                 );
