@@ -10,6 +10,9 @@
 export const TOL_MARCACAO = 5;   // min por batida
 export const TOL_DIA = 10;       // min somados no dia
 export const INTRA_MIN = 60;     // intrajornada mínima (min)
+// "Fora de escala": a 1ª batida do dia difere da entrada prevista por mais que
+// isto → a pessoa trabalhou num turno diferente do escalado (não é só atraso).
+export const LIMITE_FORA_ESCALA = 120; // min (2h) — ajustável
 export const INTER_MIN = 11 * 60; // interjornada mínima (min)
 
 export const toMin = (hhmm) => {
@@ -113,7 +116,14 @@ function apurarDia(reg, opts) {
         r.saldoBruto = saldoBruto;
         // CLT: dentro da tolerância → desconsidera; estourou → conta tudo
         r.saldoLiquido = (!excedeMarca && !excedeDia) ? 0 : saldoBruto;
-        if (difs.some(d => Math.abs(d) > tolMarc)) flags.push("divergencia");
+        r.entradaDif = difs[0]; // deslocamento da 1ª batida vs entrada prevista
+        // "Fora de escala": entrada muito deslocada = turno diferente do escalado.
+        // Senão, se alguma batida passou a tolerância, é só divergência (pequena).
+        if (Math.abs(difs[0]) > (opts.limiteForaEscala ?? LIMITE_FORA_ESCALA)) {
+          flags.push("fora_escala");
+        } else if (excedeMarca) {
+          flags.push("divergencia");
+        }
       }
     }
   }
@@ -129,6 +139,7 @@ export function apurar(registros, opts = {}) {
   const o = {
     tolMarcacao: opts.tolMarcacao ?? TOL_MARCACAO,
     tolDia: opts.tolDia ?? TOL_DIA,
+    limiteForaEscala: opts.limiteForaEscala ?? LIMITE_FORA_ESCALA,
   };
   return registros.map(reg => apurarDia(reg, o));
 }
@@ -137,7 +148,7 @@ export function apurar(registros, opts = {}) {
 export function resumo(dias) {
   const has = (d, f) => d.flags.includes(f);
   let heTotal = 0, debTotal = 0, heBruto = 0, debBruto = 0;
-  const contadores = { falta_marcacao: 0, impar: 0, intra_curta: 0, intra_longa: 0, divergencia: 0, sem_marcacao: 0 };
+  const contadores = { fora_escala: 0, falta_marcacao: 0, impar: 0, intra_curta: 0, intra_longa: 0, divergencia: 0, sem_marcacao: 0 };
   dias.forEach(d => {
     Object.keys(contadores).forEach(f => { if (has(d, f)) contadores[f]++; });
     if (d.saldoLiquido > 0) heTotal += d.saldoLiquido;
@@ -171,6 +182,7 @@ export function resumo(dias) {
 
 // rótulos amigáveis das flags
 export const FLAGS = {
+  fora_escala:    { label: "Fora de escala", cor: "#8E2A2A", icone: "🕗" },
   falta_marcacao: { label: "Faltam marcações", cor: "#B5562F", icone: "⛔" },
   impar:          { label: "Nº ímpar de marcações", cor: "#B07D10", icone: "½" },
   intra_curta:    { label: "Intervalo abaixo do mínimo", cor: "#B07D10", icone: "🍽" },

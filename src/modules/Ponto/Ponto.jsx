@@ -116,6 +116,7 @@ export function Ponto({ onSair }) {
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 16 }}>
               <Card titulo="Hora extra (líquida)" valor={fmtMin(s.heTotal)} cor={C.green} sub={"bruto: " + fmtMin(s.heBruto)} />
               <Card titulo="Débito (líquido)" valor={fmtMin(s.debTotal)} cor={C.clay} sub={"bruto: " + fmtMin(s.debBruto)} />
+              <Card titulo="Fora de escala" valor={s.contadores.fora_escala} cor="#8E2A2A" sub="turno diferente do escalado" />
               <Card titulo="Faltam marcações" valor={s.contadores.falta_marcacao} cor="#B5562F" sub="dias com <4 batidas" />
               <Card titulo="Intervalo abaixo do mín." valor={s.contadores.intra_curta} cor="#B07D10" sub="Art. 71 (15min / 1h)" />
               <Card titulo="Intervalo acima de 2h" valor={s.contadores.intra_longa} cor="#B07D10" sub="jornada > 6h" />
