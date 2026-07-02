@@ -76,6 +76,70 @@ function escolherMelhor(cands, catMaxCusto, custoPrato, insumoMap, pessoas, esto
 // ordem fixa das categorias no plano de refeição
 const ORDEM_CAT = ["Proteína", "Base", "Guarnição", "Salada", "Sobremesa", "Bebida"];
 
+// Passada de segurança: garante que TODA refeição tenha 1 Proteína + TODAS as
+// Bases marcadas. Se o motor (ou a IA) esqueceu, preenchemos aqui.
+// Retorna { plano, avisos } — avisos lista o que foi adicionado.
+function completarEstrutura({ plano, pratos, planoRef, refeicoes, pratoMap, insumoMap, custoPrato, pessoas, estoqueRest }) {
+  const bases = pratos.filter(p => p.categoria === "Base");
+  const proteinas = pratos.filter(p => p.categoria === "Proteína");
+  const avisos = [];
+  let custoAdicional = 0, adicionadas = 0, adicionadasCobertas = 0;
+  const novoPlano = {};
+  Object.keys(plano).forEach(data => {
+    const dia = {};
+    Object.keys(plano[data] || {}).forEach(refId => {
+      const r = plano[data][refId];
+      if (r.sobra) { dia[refId] = r; return; } // não mexe em jantar-sobra (é cópia do almoço)
+      const ref = refeicoes.find(x => x.id === refId);
+      if (!ref) { dia[refId] = r; return; }
+
+      const ids = [...(r.pratos || [])];
+      const catCount = {};
+      ids.forEach(id => { const c = pratoMap[id]?.categoria; if (c) catCount[c] = (catCount[c] || 0) + 1; });
+      const usadosAqui = new Set(ids);
+
+      // Garante 1 Proteína
+      if (planoRef["Proteína"] && (catCount["Proteína"] || 0) < 1 && proteinas.length) {
+        const eleg = proteinas.filter(p => serveRefeicao(p, refId) && !usadosAqui.has(p.id));
+        // se ninguém elegível pelo filtro de refeição, pega qualquer proteína (regra estrutural manda)
+        const cands = eleg.length ? eleg : proteinas.filter(p => !usadosAqui.has(p.id));
+        if (cands.length) {
+          // escolhe a mais barata como fallback determinístico
+          cands.sort((a, b) => custoPrato(a) - custoPrato(b));
+          const escolha = cands[0];
+          ids.push(escolha.id); usadosAqui.add(escolha.id);
+          adicionadas++;
+          const cob = cobertura(escolha, insumoMap, pessoas, estoqueRest);
+          if (cob >= 0.999) adicionadasCobertas++;
+          consomeEstoque(escolha, insumoMap, pessoas, estoqueRest);
+          custoAdicional += custoPrato(escolha) * pessoas;
+          avisos.push(`${data} · ${ref.nome}: proteína faltando → adicionei ${escolha.nome}`);
+        }
+      }
+
+      // Garante todas as Bases (arroz/feijão sempre em toda refeição)
+      if (planoRef["Base"] && bases.length) {
+        bases.forEach(b => {
+          if (usadosAqui.has(b.id)) return;
+          // se a base tem marca "serve só em X" e X não é esta refeição, respeita a marca
+          if (!serveRefeicao(b, refId)) return;
+          ids.push(b.id); usadosAqui.add(b.id);
+          adicionadas++;
+          const cob = cobertura(b, insumoMap, pessoas, estoqueRest);
+          if (cob >= 0.999) adicionadasCobertas++;
+          consomeEstoque(b, insumoMap, pessoas, estoqueRest);
+          custoAdicional += custoPrato(b) * pessoas;
+          avisos.push(`${data} · ${ref.nome}: base faltando → adicionei ${b.nome}`);
+        });
+      }
+
+      dia[refId] = { ...r, pratos: ids };
+    });
+    novoPlano[data] = dia;
+  });
+  return { plano: novoPlano, avisos, delta: { custo: custoAdicional, adicionadas, adicionadasCobertas } };
+}
+
 export function gerarCardapioLocal({ pratos, custoPrato, insumoMap, pratoMap, estoque, cardapio, datas, refeicoes, planoRef, pessoas, opts }) {
   const naoRepetir = Math.max(0, Number(opts?.naoRepetir ?? 3));
   const wCusto   = opts?.priorizarCusto   ? 1 : 0;
@@ -182,7 +246,10 @@ export async function refinarComIA({ url, anon, pratos, estoque, insumoMap, cust
   Object.keys(d.plano || {}).forEach(data => {
     const dia = {};
     Object.keys(d.plano[data] || {}).forEach(refId => {
-      const ids = (d.plano[data][refId] || []).filter(id => pratoPorId[id] && serveRefeicao(pratoPorId[id], refId));
+      // aceita array de ids (formato oficial) OU objeto {pratos:[...]} (formato do motor local, caso a IA copie)
+      const cru = d.plano[data][refId];
+      const bruto = Array.isArray(cru) ? cru : (cru && Array.isArray(cru.pratos) ? cru.pratos : []);
+      const ids = bruto.filter(id => pratoPorId[id] && serveRefeicao(pratoPorId[id], refId));
       if (ids.length) dia[refId] = { pratos: ids, previsto: pessoas };
     });
     if (Object.keys(dia).length) plano[data] = dia;
@@ -271,20 +338,33 @@ export function GerarCardapioModal({ cardapio, pratos, pratoMap, custoPrato, ins
       "Bebida":    incluirBebida ? { qtd: 1 } : null,
     };
     const opts = { priorizarCusto: priorCusto, priorizarEstoque: priorEstoque, naoRepetir: Number(naoRepetir), sobrescrever, repetirJantaNoAlmoco: repetirJanta };
-    const local = gerarCardapioLocal({ pratos, custoPrato, insumoMap, pratoMap, estoque, cardapio, datas, refeicoes, planoRef, pessoas: Number(pessoas) || 100, opts });
+    const pessoasNum = Number(pessoas) || 100;
+    const local = gerarCardapioLocal({ pratos, custoPrato, insumoMap, pratoMap, estoque, cardapio, datas, refeicoes, planoRef, pessoas: pessoasNum, opts });
+
+    // helper: aplica a passada de segurança + recalcula meta
+    const validar = (plano, fonteLabel) => {
+      // roda a validação com um estoqueRest "novo" (o motor já mutou o dele)
+      const estoqueRest = estoqueComprometido(estoque, cardapio, pratoMap || {}, insumoMap, datas, sobrescrever);
+      // desconta o que o próprio plano já usa, pra não repetir contagem
+      Object.values(plano).forEach(dia => Object.values(dia).forEach(r => { if (r.sobra) return; (r.pratos || []).forEach(id => consomeEstoque(pratoMap[id], insumoMap, r.previsto || pessoasNum, estoqueRest)); }));
+      const { plano: planoFinal, avisos, delta } = completarEstrutura({ plano, pratos, planoRef, refeicoes, pratoMap, insumoMap, custoPrato, pessoas: pessoasNum, estoqueRest });
+      // recalcula custo/refeições a partir do plano final (jantar-sobra não soma)
+      let custoTotal = 0, inst = 0;
+      Object.values(planoFinal).forEach(dia => Object.keys(dia).forEach(refId => { if (dia[refId].sobra) return; dia[refId].pratos.forEach(id => { custoTotal += custoPrato(pratoMap[id]) * pessoasNum; inst++; }); }));
+      return { plano: planoFinal, meta: { custoTotal, coberturaPct: local.meta.coberturaPct, refeicoes: inst }, fonte: fonteLabel, avisos };
+    };
+
     if (usarIA && iaUrl) {
       try {
         const refeicoesParaIA = repetirJanta ? refeicoes.filter(r => r.id !== "janta") : refeicoes;
-        let planoIA = await refinarComIA({ url: iaUrl, anon, pratos, estoque, insumoMap, custoPrato, planoLocal: local.plano, datas, refeicoes: refeicoesParaIA, planoRef, pessoas: Number(pessoas) || 100, opts });
-        if (repetirJanta) planoIA = aplicarRepetirJanta(planoIA, refeicoes, Number(pessoas) || 100);
-        let custoTotal = 0, inst = 0;
-        Object.values(planoIA).forEach(dia => Object.keys(dia).forEach(refId => { if (dia[refId].sobra) return; dia[refId].pratos.forEach(id => { custoTotal += custoPrato(pratoMap[id]) * (Number(pessoas) || 100); inst++; }); }));
-        setProposta({ plano: planoIA, meta: { custoTotal, coberturaPct: local.meta.coberturaPct, refeicoes: inst }, fonte: "IA (DeepSeek)" });
+        let planoIA = await refinarComIA({ url: iaUrl, anon, pratos, estoque, insumoMap, custoPrato, planoLocal: local.plano, datas, refeicoes: refeicoesParaIA, planoRef, pessoas: pessoasNum, opts });
+        if (repetirJanta) planoIA = aplicarRepetirJanta(planoIA, refeicoes, pessoasNum);
+        setProposta(validar(planoIA, "IA (DeepSeek)"));
       } catch (e) {
-        setProposta({ ...local, fonte: "local (IA indisponível: " + String(e.message || e).slice(0, 50) + ")" });
+        setProposta(validar(local.plano, "local (IA indisponível: " + String(e.message || e).slice(0, 50) + ")"));
       }
     } else {
-      setProposta({ ...local, fonte: "motor local" });
+      setProposta(validar(local.plano, "motor local"));
     }
     setBusy(false);
   };
@@ -352,6 +432,15 @@ export function GerarCardapioModal({ cardapio, pratos, pratoMap, custoPrato, ins
               <span>Refeições montadas: <b style={{ color: C.ink }}>{proposta.meta.refeicoes}</b></span>
               <span>Coberto pelo estoque: <b style={{ color: C.ink }}>{proposta.meta.coberturaPct}%</b></span>
             </div>
+            {proposta.avisos && proposta.avisos.length > 0 && (
+              <div style={{ background: "#FFF4E5", border: "1px solid " + C.wheat, borderRadius: 8, padding: "8px 10px", fontSize: 12, color: C.ink, marginBottom: 10 }}>
+                <div style={{ fontWeight: 700, marginBottom: 4 }}>Ajustes de estrutura ({proposta.avisos.length}):</div>
+                <div style={{ maxHeight: 90, overflowY: "auto" }}>
+                  {proposta.avisos.slice(0, 15).map((a, i) => <div key={i}>· {a}</div>)}
+                  {proposta.avisos.length > 15 && <div style={{ color: C.muted }}>… e mais {proposta.avisos.length - 15}</div>}
+                </div>
+              </div>
+            )}
             <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 320, overflowY: "auto" }}>
               {Object.keys(proposta.plano).sort().map(data => {
                 const dd = fromISO(data);
