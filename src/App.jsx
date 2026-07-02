@@ -8,6 +8,7 @@ import { PCM } from "./modules/PCM/PCM.jsx";
 import { Pluviometria } from "./modules/operacionais/Pluviometria.jsx";
 import { Abastecimento } from "./modules/operacionais/Abastecimento.jsx";
 import { Almoxarifado } from "./modules/operacionais/Almoxarifado.jsx";
+import { Chorei } from "./modules/Chorei/Chorei.jsx";
 
 const RENDERIZADORES = {
   restaurante: props => <Restaurante {...props} />,
@@ -15,6 +16,7 @@ const RENDERIZADORES = {
   pluviometria: props => <Pluviometria {...props} />,
   abastecimento: props => <Abastecimento {...props} />,
   almoxarifado: props => <Almoxarifado {...props} />,
+  chorei: props => <Chorei {...props} />,
 };
 
 const carregarSessao = () => {

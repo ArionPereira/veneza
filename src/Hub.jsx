@@ -8,6 +8,7 @@ export const MODULOS = [
   { id:"pluviometria", nome:"Pluviometria e Hidrômetro", icone:"🌧️", descricao:"Leituras de chuva (mm) e de hidrômetro (m³), consumo de água, acumulados e relatórios.", ativo:true },
   { id:"abastecimento", nome:"Abastecimento", icone:"⛽", descricao:"Frota, tanques, abastecimentos, consumo e custos de combustível.", ativo:true },
   { id:"almoxarifado", nome:"Estoque e Almoxarifado", icone:"📦", descricao:"Itens, entradas, saídas, inventários e controle de estoque mínimo.", ativo:true },
+  { id:"chorei", nome:"Chōrei · Reuniões diárias", icone:"🗣️", descricao:"Reunião curta de 15 min por equipe (PCP, Almoxarifado, ADM): dificuldades, plano do dia, pendências com dono e prazo.", ativo:true },
 ];
 
 function Card({mod,liberado,onSelect}) {

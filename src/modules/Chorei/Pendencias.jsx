@@ -1,0 +1,126 @@
+import React from "react";
+const { useState, useMemo } = React;
+import { C, SERIF, SH } from "../../constants.js";
+import { STATUS, statusInfo, ehTerminal, fmtData, hojeISO } from "./choreiconst.js";
+import { ItemCard } from "./ItemCard.jsx";
+
+// Painel consolidado de pendências: mostra todos os itens NÃO terminais das
+// 3 equipes juntas. Ordena por prazo (mais próximo primeiro), depois por
+// data de criação. Filtros por equipe, tipo e dono.
+export function Pendencias({ equipes, itens, sessao, usuarios, recarregar }) {
+  const [erro, setErro] = useState("");
+  const [equipeFiltro, setEquipeFiltro] = useState("todas");
+  const [donoFiltro, setDonoFiltro] = useState("todos");
+  const [status, setStatus] = useState("nao_terminais");
+
+  const eMaster = sessao?.role === "master";
+
+  const equipeCor = (id) => (equipes.find(e => e.id === id)?.cor || C.brand);
+  const equipeNome = (id) => (equipes.find(e => e.id === id)?.nome || "?");
+
+  const respPodeEscrever = (item) => {
+    if (eMaster) return true;
+    const eq = equipes.find(e => e.id === item.equipe_id);
+    return eq?.responsavel_id === sessao?.id;
+  };
+
+  const filtrados = useMemo(() => {
+    let arr = itens.filter(i => {
+      if (status === "nao_terminais" && ehTerminal(i.status)) return false;
+      if (status !== "todos" && status !== "nao_terminais" && i.status !== status) return false;
+      if (equipeFiltro !== "todas" && i.equipe_id !== equipeFiltro) return false;
+      if (donoFiltro !== "todos") {
+        if (donoFiltro === "sem_dono" && (i.responsavel_id || i.responsavel_nome)) return false;
+        if (donoFiltro !== "sem_dono" && i.responsavel_id !== donoFiltro) return false;
+      }
+      return true;
+    });
+    arr.sort((a,b) => {
+      const pa = a.prazo || "9999-99-99";
+      const pb = b.prazo || "9999-99-99";
+      if (pa !== pb) return pa < pb ? -1 : 1;
+      return (a.criado_em || "") < (b.criado_em || "") ? 1 : -1;
+    });
+    return arr.map(i => ({
+      ...i,
+      _equipeNome: equipeNome(i.equipe_id),
+      _equipeCor: equipeCor(i.equipe_id),
+    }));
+  }, [itens, equipeFiltro, donoFiltro, status]);
+
+  const contagens = useMemo(() => {
+    const atrasadas = itens.filter(i => !ehTerminal(i.status) && i.prazo && i.prazo < hojeISO()).length;
+    const abertas = itens.filter(i => i.status === "aberto").length;
+    const emAndamento = itens.filter(i => i.status === "em_andamento").length;
+    return { atrasadas, abertas, emAndamento };
+  }, [itens]);
+
+  const sel = { border:"1px solid "+C.line, borderRadius:8, padding:"6px 10px", fontSize:13, background:C.paper, color:C.ink };
+
+  return (
+    <div style={{ marginTop:16 }}>
+      {/* Barra de métricas */}
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(160px, 1fr))", gap:10, marginBottom:14 }}>
+        <div style={{ background:C.card, border:"1px solid "+C.line, borderLeft:"3px solid "+C.clay, borderRadius:10, padding:"10px 12px" }}>
+          <div style={{ fontSize:11, color:C.muted, fontWeight:600 }}>Atrasadas</div>
+          <div style={{ fontFamily:SERIF, fontSize:22, color:C.clay, fontWeight:700 }}>{contagens.atrasadas}</div>
+        </div>
+        <div style={{ background:C.card, border:"1px solid "+C.line, borderLeft:"3px solid "+C.muted, borderRadius:10, padding:"10px 12px" }}>
+          <div style={{ fontSize:11, color:C.muted, fontWeight:600 }}>Abertas</div>
+          <div style={{ fontFamily:SERIF, fontSize:22, color:C.ink, fontWeight:700 }}>{contagens.abertas}</div>
+        </div>
+        <div style={{ background:C.card, border:"1px solid "+C.line, borderLeft:"3px solid #B07D10", borderRadius:10, padding:"10px 12px" }}>
+          <div style={{ fontSize:11, color:C.muted, fontWeight:600 }}>Em andamento</div>
+          <div style={{ fontFamily:SERIF, fontSize:22, color:C.ink, fontWeight:700 }}>{contagens.emAndamento}</div>
+        </div>
+      </div>
+
+      {/* Filtros */}
+      <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:14, alignItems:"center" }}>
+        <span style={{ fontSize:11, color:C.muted, fontWeight:600 }}>Equipe:</span>
+        <select value={equipeFiltro} onChange={e => setEquipeFiltro(e.target.value)} style={sel}>
+          <option value="todas">Todas</option>
+          {equipes.filter(e => e.ativo).map(e => <option key={e.id} value={e.id}>{e.nome}</option>)}
+        </select>
+        <span style={{ fontSize:11, color:C.muted, fontWeight:600 }}>Dono:</span>
+        <select value={donoFiltro} onChange={e => setDonoFiltro(e.target.value)} style={sel}>
+          <option value="todos">Todos</option>
+          <option value="sem_dono">Sem dono</option>
+          {usuarios.map(u => <option key={u.id} value={u.id}>{u.nome}</option>)}
+        </select>
+        <span style={{ fontSize:11, color:C.muted, fontWeight:600 }}>Status:</span>
+        <select value={status} onChange={e => setStatus(e.target.value)} style={sel}>
+          <option value="nao_terminais">Abertas + em andamento</option>
+          <option value="aberto">Só abertas</option>
+          <option value="em_andamento">Só em andamento</option>
+          <option value="resolvido">Resolvidas</option>
+          <option value="cancelado">Canceladas</option>
+          <option value="todos">Todas</option>
+        </select>
+        <span style={{ marginLeft:"auto", fontSize:11.5, color:C.muted }}>
+          {filtrados.length} item(ns)
+        </span>
+      </div>
+
+      {erro && (
+        <div style={{ marginBottom:10, fontSize:13, color:C.clay, background:"#FBEAE3",
+          border:"1px solid "+C.clay, borderRadius:8, padding:"8px 10px" }}>{erro}</div>
+      )}
+
+      {filtrados.length === 0 && (
+        <div style={{ background:C.sage, border:"1px solid "+C.line, borderRadius:10,
+          padding:"18px", textAlign:"center", fontSize:13, color:C.brand, fontWeight:600 }}>
+          Nada pendente com esses filtros. 🎉
+        </div>
+      )}
+
+      <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+        {filtrados.map(i => (
+          <ItemCard key={i.id} item={i} sessao={sessao} usuarios={usuarios}
+            podeEscrever={respPodeEscrever(i)} recarregar={recarregar} onErro={setErro}
+            mostrarEquipe={true} />
+        ))}
+      </div>
+    </div>
+  );
+}
