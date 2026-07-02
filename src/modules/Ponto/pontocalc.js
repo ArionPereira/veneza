@@ -91,7 +91,17 @@ function apurarDia(reg, opts) {
       const intra = marcSeq[2] - marcSeq[1];
       r.trabalhado = trab;
       r.intrajornada = intra;
-      if (intra < opts.intraMin) flags.push("intra_curta");
+      // Art. 71 CLT — mínimo do intervalo depende da duração da jornada.
+      // Usamos a carga prevista pra definir a faixa (é o contrato); se não houver
+      // previsto, caímos na jornada trabalhada.
+      const jornada = carga != null ? carga : trab;
+      let intraMinReq = 0, intraMaxReq = null;
+      if (jornada > 360) { intraMinReq = 60; intraMaxReq = 120; }   // > 6h: 1h a 2h
+      else if (jornada >= 240) { intraMinReq = 15; }                // 4h a 6h: 15 min
+      r.intraMinReq = intraMinReq;
+      r.intraMaxReq = intraMaxReq;
+      if (intraMinReq > 0 && intra < intraMinReq) flags.push("intra_curta");
+      if (intraMaxReq != null && intra > intraMaxReq) flags.push("intra_longa");
 
       if (temPrevisto) {
         const difs = [0, 1, 2, 3].map(i => marcSeq[i] - prevSeq[i]);
@@ -110,41 +120,24 @@ function apurarDia(reg, opts) {
   return r;
 }
 
-// ---- apura tudo: dias + interjornada entre dias consecutivos do mesmo colaborador ----
+// ---- apura todos os dias ----
+// NOTA: a interjornada (Art. 66 CLT, 11h de descanso) está em STAND-BY porque o
+// Excel atual só traz os dias com divergência, não a folha completa. Sem os dias
+// consecutivos de verdade, comparar "dia anterior × próximo" daria valores falsos.
+// O código de início/fim absolutos fica pronto pra quando vier a base completa.
 export function apurar(registros, opts = {}) {
   const o = {
     tolMarcacao: opts.tolMarcacao ?? TOL_MARCACAO,
     tolDia: opts.tolDia ?? TOL_DIA,
-    intraMin: opts.intraMin ?? INTRA_MIN,
-    interMin: opts.interMin ?? INTER_MIN,
   };
-  const dias = registros.map(reg => apurarDia(reg, o));
-
-  // interjornada: agrupa por colaborador, ordena por data, compara fim×início seguinte
-  const porPessoa = {};
-  dias.forEach(d => { (porPessoa[d.contrato + "|" + d.nome] = porPessoa[d.contrato + "|" + d.nome] || []).push(d); });
-  Object.values(porPessoa).forEach(lista => {
-    lista.sort((a, b) => (a.data < b.data ? -1 : a.data > b.data ? 1 : 0));
-    for (let i = 1; i < lista.length; i++) {
-      const ant = lista[i - 1], atual = lista[i];
-      if (ant.fimAbs != null && atual.inicioAbs != null) {
-        const gap = atual.inicioAbs - ant.fimAbs; // min de descanso
-        if (gap >= 0) {
-          atual.interjornada = gap;
-          if (gap < o.interMin) atual.flags.push("interjornada");
-        }
-      }
-    }
-  });
-
-  return dias;
+  return registros.map(reg => apurarDia(reg, o));
 }
 
 // ---- agregações pro dashboard ----
 export function resumo(dias) {
   const has = (d, f) => d.flags.includes(f);
   let heTotal = 0, debTotal = 0, heBruto = 0, debBruto = 0;
-  const contadores = { falta_marcacao: 0, impar: 0, intra_curta: 0, interjornada: 0, divergencia: 0, sem_marcacao: 0 };
+  const contadores = { falta_marcacao: 0, impar: 0, intra_curta: 0, intra_longa: 0, divergencia: 0, sem_marcacao: 0 };
   dias.forEach(d => {
     Object.keys(contadores).forEach(f => { if (has(d, f)) contadores[f]++; });
     if (d.saldoLiquido > 0) heTotal += d.saldoLiquido;
@@ -180,8 +173,8 @@ export function resumo(dias) {
 export const FLAGS = {
   falta_marcacao: { label: "Faltam marcações", cor: "#B5562F", icone: "⛔" },
   impar:          { label: "Nº ímpar de marcações", cor: "#B07D10", icone: "½" },
-  intra_curta:    { label: "Intrajornada < 1h", cor: "#B07D10", icone: "🍽" },
-  interjornada:   { label: "Interjornada < 11h", cor: "#B5562F", icone: "🌙" },
+  intra_curta:    { label: "Intervalo abaixo do mínimo", cor: "#B07D10", icone: "🍽" },
+  intra_longa:    { label: "Intervalo acima de 2h", cor: "#B07D10", icone: "🍽" },
   divergencia:    { label: "Divergência do previsto", cor: "#6A7682", icone: "≠" },
   sem_marcacao:   { label: "Sem marcações (falta/afast.)", cor: "#6A7682", icone: "—" },
 };

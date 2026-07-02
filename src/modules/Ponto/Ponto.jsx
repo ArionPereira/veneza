@@ -71,12 +71,12 @@ export function Ponto({ onSair }) {
 
   const exportar = () => {
     const esc = v => '"' + String(v ?? "").replace(/"/g, '""') + '"';
-    const head = ["Data", "Dia", "Contrato", "Colaborador", "Setor", "Função", "Escala", "Previsto", "Batidas", "Carga", "Trabalhado", "Intrajornada", "Interjornada", "Saldo líquido (min)", "Saldo bruto (min)", "Ocorrências", "Obs. sistema"];
+    const head = ["Data", "Dia", "Contrato", "Colaborador", "Setor", "Função", "Escala", "Previsto", "Batidas", "Carga", "Trabalhado", "Intervalo", "Saldo líquido (min)", "Saldo bruto (min)", "Ocorrências", "Obs. sistema"];
     const linhas = filtrados.map(d => [
       d.data, d.sem, d.contrato, d.nome, d.setor, d.funcao, d.escala,
       (d.previsto || []).join(" "), (d.marcacoes || []).join(" "),
       d.carga != null ? fmtHM(d.carga) : "", d.trabalhado != null ? fmtHM(d.trabalhado) : "",
-      d.intrajornada != null ? fmtHM(d.intrajornada) : "", d.interjornada != null ? fmtHM(d.interjornada) : "",
+      d.intrajornada != null ? fmtHM(d.intrajornada) : "",
       d.saldoLiquido ?? "", d.saldoBruto ?? "",
       d.flags.map(f => (FLAGS[f]?.label || f)).join("; "), d.obs,
     ]);
@@ -107,7 +107,7 @@ export function Ponto({ onSair }) {
         {!dias && !carregando && (
           <div style={{ textAlign: "center", color: C.muted, fontSize: 14, padding: "60px 20px" }}>
             Carregue um arquivo pra ver a apuração.<br />
-            <span style={{ fontSize: 12.5 }}>Tolerância aplicada: {TOL_MARCACAO} min por batida / {TOL_DIA} min no dia (CLT art. 58).</span>
+            <span style={{ fontSize: 12.5 }}>Tolerância: {TOL_MARCACAO} min/batida · {TOL_DIA} min/dia (CLT art. 58). Intervalo pelo Art. 71 (15 min p/ 4-6h; 1h a 2h p/ &gt; 6h). Interjornada (Art. 66) em stand-by até vir a folha completa.</span>
           </div>
         )}
 
@@ -117,8 +117,8 @@ export function Ponto({ onSair }) {
               <Card titulo="Hora extra (líquida)" valor={fmtMin(s.heTotal)} cor={C.green} sub={"bruto: " + fmtMin(s.heBruto)} />
               <Card titulo="Débito (líquido)" valor={fmtMin(s.debTotal)} cor={C.clay} sub={"bruto: " + fmtMin(s.debBruto)} />
               <Card titulo="Faltam marcações" valor={s.contadores.falta_marcacao} cor="#B5562F" sub="dias com <4 batidas" />
-              <Card titulo="Intrajornada < 1h" valor={s.contadores.intra_curta} cor="#B07D10" sub="almoço curto" />
-              <Card titulo="Interjornada < 11h" valor={s.contadores.interjornada} cor="#B5562F" sub="descanso insuficiente" />
+              <Card titulo="Intervalo abaixo do mín." valor={s.contadores.intra_curta} cor="#B07D10" sub="Art. 71 (15min / 1h)" />
+              <Card titulo="Intervalo acima de 2h" valor={s.contadores.intra_longa} cor="#B07D10" sub="jornada > 6h" />
               <Card titulo="Nº ímpar de batidas" valor={s.contadores.impar} cor="#B07D10" sub="registro inconsistente" />
             </div>
 
@@ -164,7 +164,7 @@ export function Ponto({ onSair }) {
             <div style={{ overflow: "auto", background: C.card, border: "1px solid " + C.line, borderRadius: 12, maxHeight: "70vh" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 900 }}>
                 <thead><tr>
-                  {["Data", "Colaborador", "Previsto", "Batidas", "Carga", "Trab.", "Intra", "Inter", "Saldo", "Ocorrências", "Obs."].map(h => <th key={h} style={th}>{h}</th>)}
+                  {["Data", "Colaborador", "Previsto", "Batidas", "Carga", "Trab.", "Intervalo", "Saldo", "Ocorrências", "Obs."].map(h => <th key={h} style={th}>{h}</th>)}
                 </tr></thead>
                 <tbody>
                   {filtrados.map((d, i) => (
@@ -175,14 +175,13 @@ export function Ponto({ onSair }) {
                       <td style={{ ...td, whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{(d.marcacoes || []).join(" · ") || "—"}</td>
                       <td style={td}>{d.carga != null ? fmtHM(d.carga) : "—"}</td>
                       <td style={td}>{d.trabalhado != null ? fmtHM(d.trabalhado) : "—"}</td>
-                      <td style={{ ...td, color: d.flags.includes("intra_curta") ? C.clay : C.ink, fontWeight: d.flags.includes("intra_curta") ? 700 : 400 }}>{d.intrajornada != null ? fmtHM(d.intrajornada) : "—"}</td>
-                      <td style={{ ...td, color: d.flags.includes("interjornada") ? C.clay : C.ink, fontWeight: d.flags.includes("interjornada") ? 700 : 400 }}>{d.interjornada != null ? fmtHM(d.interjornada) : "—"}</td>
+                      <td style={{ ...td, color: (d.flags.includes("intra_curta") || d.flags.includes("intra_longa")) ? C.clay : C.ink, fontWeight: (d.flags.includes("intra_curta") || d.flags.includes("intra_longa")) ? 700 : 400 }}>{d.intrajornada != null ? fmtHM(d.intrajornada) : "—"}</td>
                       <td style={{ ...td, fontWeight: 700, color: d.saldoLiquido > 0 ? C.green : d.saldoLiquido < 0 ? C.clay : C.muted }}>{d.saldoLiquido != null ? fmtMin(d.saldoLiquido) : "—"}</td>
                       <td style={td}>{d.flags.length ? d.flags.map(f => <FlagChip key={f} f={f} />) : <span style={{ color: C.green }}>✓ ok</span>}</td>
                       <td style={{ ...td, fontSize: 11, color: C.muted, maxWidth: 160 }}>{d.obs}</td>
                     </tr>
                   ))}
-                  {!filtrados.length && <tr><td colSpan={11} style={td}>Nenhum registro com esses filtros.</td></tr>}
+                  {!filtrados.length && <tr><td colSpan={10} style={td}>Nenhum registro com esses filtros.</td></tr>}
                 </tbody>
               </table>
             </div>
