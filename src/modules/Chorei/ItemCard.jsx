@@ -1,7 +1,7 @@
 import React from "react";
 const { useState } = React;
 import { C, SH } from "../../constants.js";
-import { TIPOS, STATUS, tipoInfo, statusInfo, ehTerminal, fmtData, fmtDataHora, hojeISO } from "./choreiconst.js";
+import { TIPOS, STATUS, tipoInfo, statusInfo, prioridadeInfo, ehProjeto, ehTerminal, fmtData, fmtDataHora, hojeISO } from "./choreiconst.js";
 import { atualizarItem, apagarItem } from "./choreidb.js";
 
 const inp = { border:"1px solid "+C.line, borderRadius:8, padding:"7px 10px", fontSize:13, background:C.paper, color:C.ink, width:"100%" };
@@ -78,6 +78,11 @@ export function ItemCard({ item, sessao, usuarios, podeEscrever, recarregar, onE
         <span style={{ fontSize:10.5, fontWeight:700, color:"#fff", background:sinf.cor, borderRadius:20, padding:"2px 8px" }}>
           {sinf.label}
         </span>
+        {ehProjeto(item) && item.prioridade && (
+          <span style={{ fontSize:10.5, fontWeight:700, color:"#fff", background:prioridadeInfo(item.prioridade).cor, borderRadius:20, padding:"2px 8px" }}>
+            {prioridadeInfo(item.prioridade).label}
+          </span>
+        )}
         {mostrarEquipe && item._equipeNome && (
           <span style={{ fontSize:10.5, fontWeight:700, color:"#fff", background:item._equipeCor||C.brand, borderRadius:20, padding:"2px 8px" }}>
             {item._equipeNome}
@@ -135,7 +140,7 @@ export function ItemCard({ item, sessao, usuarios, podeEscrever, recarregar, onE
           )}
           {podeEscrever && (
             <div style={{ display:"flex", gap:5, flexWrap:"wrap", marginTop:8, borderTop:"1px dashed "+C.line, paddingTop:8 }}>
-              {STATUS.filter(s => s.id !== item.status).map(s => (
+              {STATUS.filter(s => s.id !== item.status && (!s.soProjeto || ehProjeto(item))).map(s => (
                 <button key={s.id} onClick={() => mudarStatus(s.id)} disabled={busy} title={"Mudar para "+s.label}
                   style={{ background: ehTerminal(s.id) ? s.cor : "transparent",
                     color: ehTerminal(s.id) ? "#fff" : s.cor,

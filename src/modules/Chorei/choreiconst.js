@@ -19,9 +19,18 @@ export const ehProjeto = (item) => item?.tipo === TIPO_PROJETO.id;
 export const STATUS = [
   { id: "aberto",       label: "Aberto",       cor: C.muted },
   { id: "em_andamento", label: "Em andamento", cor: "#B07D10" },
+  { id: "pausado",      label: "Pausado",      cor: C.brand2, soProjeto: true },
   { id: "resolvido",    label: "Resolvido",    cor: C.green },
   { id: "cancelado",    label: "Cancelado",    cor: C.clay },
 ];
+
+export const PRIORIDADES = [
+  { id: "alta",  label: "Alta",  cor: C.clay },
+  { id: "media", label: "Média", cor: "#B07D10" },
+  { id: "baixa", label: "Baixa", cor: C.muted },
+];
+export const prioridadeInfo = (id) => PRIORIDADES.find(p => p.id === id) || PRIORIDADES[1];
+export const pesoPrioridade = (id) => ({ alta:0, media:1, baixa:2 }[id] ?? 1);
 
 export const tipoInfo   = (id) => TIPOS.find(t => t.id === id) || (id === TIPO_PROJETO.id ? TIPO_PROJETO : {});
 export const statusInfo = (id) => STATUS.find(s => s.id === id) || {};

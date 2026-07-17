@@ -102,6 +102,7 @@ export function Pendencias({ equipes, itens, sessao, usuarios, recarregar }) {
           <option value="nao_terminais">Abertas + em andamento</option>
           <option value="aberto">Só abertas</option>
           <option value="em_andamento">Só em andamento</option>
+          <option value="pausado">Só pausadas</option>
           <option value="resolvido">Resolvidas</option>
           <option value="cancelado">Canceladas</option>
           <option value="todos">Todas</option>

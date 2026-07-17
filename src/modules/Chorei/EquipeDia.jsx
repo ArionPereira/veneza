@@ -1,19 +1,20 @@
 import React from "react";
 const { useState, useMemo } = React;
 import { C, SERIF, SH } from "../../constants.js";
-import { TIPOS, TIPO_PROJETO, ehProjeto, tipoInfo, ehTerminal, fmtData, hojeISO } from "./choreiconst.js";
+import { TIPOS, TIPO_PROJETO, PRIORIDADES, pesoPrioridade, ehProjeto, tipoInfo, ehTerminal, fmtData, hojeISO } from "./choreiconst.js";
 import { criarItem } from "./choreidb.js";
 import { ItemCard } from "./ItemCard.jsx";
+import { ProjetoCard } from "./ProjetoCard.jsx";
 
 const inp = { border:"1px solid "+C.line, borderRadius:8, padding:"8px 10px", fontSize:13.5, background:C.paper, color:C.ink, width:"100%" };
 const lab = { fontSize:11, color:C.muted, fontWeight:600, marginBottom:3 };
 
 // tela do dia — três colunas com os blocos + form pra adicionar
-export function EquipeDia({ equipe, itens, sessao, usuarios, recarregar }) {
+export function EquipeDia({ equipe, itens, etapas = [], notas = [], semV3 = false, sessao, usuarios, recarregar }) {
   const [erro, setErro] = useState("");
   const [novo, setNovo] = useState({ tipo:"dificuldade", texto:"", responsavel:"", prazo:"" });
   const [salvando, setSalvando] = useState(false);
-  const [novoProj, setNovoProj] = useState({ texto:"", responsavel:"", prazo:"" });
+  const [novoProj, setNovoProj] = useState({ texto:"", responsavel:"", prazo:"", prioridade:"media", inicio:hojeISO() });
   const [salvandoProj, setSalvandoProj] = useState(false);
   const [verConcluidos, setVerConcluidos] = useState(false);
 
@@ -28,6 +29,8 @@ export function EquipeDia({ equipe, itens, sessao, usuarios, recarregar }) {
   const projetos = itens.filter(ehProjeto);
   const projetosAbertos = projetos.filter(i => !ehTerminal(i.status))
     .slice().sort((a,b) => {
+      const wa = pesoPrioridade(a.prioridade), wb = pesoPrioridade(b.prioridade);
+      if (wa !== wb) return wa - wb;
       const pa = a.prazo || "9999-99-99", pb = b.prazo || "9999-99-99";
       if (pa !== pb) return pa < pb ? -1 : 1;
       return (a.criado_em || "") < (b.criado_em || "") ? 1 : -1;
@@ -79,8 +82,10 @@ export function EquipeDia({ equipe, itens, sessao, usuarios, recarregar }) {
         responsavelId: novoProj.responsavel || null,
         responsavelNome: respUser?.nome || null,
         prazo: novoProj.prazo || null,
+        // prioridade/início dependem do chorei_v3.sql
+        ...(semV3 ? {} : { prioridade: novoProj.prioridade, inicio: novoProj.inicio || null }),
       });
-      setNovoProj({ texto:"", responsavel:"", prazo:"" });
+      setNovoProj({ texto:"", responsavel:"", prazo:"", prioridade:"media", inicio:hojeISO() });
       await recarregar();
     } catch (err) {
       const m = err.message || String(err);
@@ -258,7 +263,21 @@ export function EquipeDia({ equipe, itens, sessao, usuarios, recarregar }) {
                 <input value={novoProj.responsavel} onChange={e => setNovoProj(n => ({ ...n, responsavel:e.target.value }))} placeholder="Nome do dono" style={inp} />
               )}
             </div>
-            <div style={{ flex:"0 0 140px" }}>
+            {!semV3 && (
+              <div style={{ flex:"0 0 100px" }}>
+                <div style={lab}>Prioridade</div>
+                <select value={novoProj.prioridade} onChange={e => setNovoProj(n => ({ ...n, prioridade:e.target.value }))} style={inp}>
+                  {PRIORIDADES.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
+                </select>
+              </div>
+            )}
+            {!semV3 && (
+              <div style={{ flex:"0 0 135px" }}>
+                <div style={lab}>Início</div>
+                <input type="date" value={novoProj.inicio} onChange={e => setNovoProj(n => ({ ...n, inicio:e.target.value }))} style={inp} />
+              </div>
+            )}
+            <div style={{ flex:"0 0 135px" }}>
               <div style={lab}>Prazo (opcional)</div>
               <input type="date" value={novoProj.prazo} onChange={e => setNovoProj(n => ({ ...n, prazo:e.target.value }))} style={inp} />
             </div>
@@ -278,11 +297,17 @@ export function EquipeDia({ equipe, itens, sessao, usuarios, recarregar }) {
             </div>
           )}
           {projetosAbertos.map(i => (
-            <ItemCard key={i.id} item={i} sessao={sessao} usuarios={usuarios}
+            <ProjetoCard key={i.id} item={i} sessao={sessao} usuarios={usuarios}
+              etapas={etapas.filter(e => e.item_id === i.id)}
+              notas={notas.filter(n => n.item_id === i.id)}
+              semV3={semV3}
               podeEscrever={podeEscrever} recarregar={recarregar} onErro={setErro} />
           ))}
           {verConcluidos && projetosConcluidos.map(i => (
-            <ItemCard key={i.id} item={i} sessao={sessao} usuarios={usuarios}
+            <ProjetoCard key={i.id} item={i} sessao={sessao} usuarios={usuarios}
+              etapas={etapas.filter(e => e.item_id === i.id)}
+              notas={notas.filter(n => n.item_id === i.id)}
+              semV3={semV3}
               podeEscrever={podeEscrever} recarregar={recarregar} onErro={setErro} />
           ))}
         </div>

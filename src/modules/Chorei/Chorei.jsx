@@ -3,7 +3,7 @@ const { useState, useEffect, useRef, useCallback, useMemo } = React;
 import { C, SERIF, SH } from "../../constants.js";
 import { Header, Centro } from "../../ui.jsx";
 import { sb } from "../../db.js";
-import { listEquipes, listItens, assinarChorei } from "./choreidb.js";
+import { listEquipes, listItens, listEtapas, listNotas, assinarChorei } from "./choreidb.js";
 import { EquipeDia } from "./EquipeDia.jsx";
 import { Historico } from "./Historico.jsx";
 import { Pendencias } from "./Pendencias.jsx";
@@ -18,6 +18,9 @@ const TABS_BASE = [
 export function Chorei({ onSair, sessao }) {
   const [equipes,  setEquipes]  = useState([]);
   const [itens,    setItens]    = useState([]);
+  const [etapas,   setEtapas]   = useState([]);
+  const [notas,    setNotas]    = useState([]);
+  const [semV3,    setSemV3]    = useState(false); // banco ainda sem chorei_v3.sql
   const [usuarios, setUsuarios] = useState([]); // pra os selects de dono
   const [loading,  setLoading]  = useState(true);
   const [erro,     setErro]     = useState(null);
@@ -31,6 +34,11 @@ export function Chorei({ onSair, sessao }) {
     try {
       const [eq, it] = await Promise.all([listEquipes(), listItens()]);
       setEquipes(eq || []); setItens(it || []); setErro(null);
+      // etapas/notas dependem do chorei_v3.sql; se ainda não rodou, segue sem elas
+      try {
+        const [et, no] = await Promise.all([listEtapas(), listNotas()]);
+        setEtapas(et || []); setNotas(no || []); setSemV3(false);
+      } catch { setEtapas([]); setNotas([]); setSemV3(true); }
       // primeira vez ou equipe atual sumiu: seleciona a primeira ativa
       setEquipeId(prev => {
         if (prev && (eq || []).some(e => e.id === prev)) return prev;
@@ -80,9 +88,9 @@ export function Chorei({ onSair, sessao }) {
         <div style={{ maxWidth:1080, margin:"16px auto", padding:"18px 20px",
           background:C.sage, border:"1px solid "+C.brand2, borderRadius:12, color:C.ink, fontSize:14 }}>
           <div style={{ fontWeight:700, color:C.brand, fontSize:15, marginBottom:6 }}>⚙ Módulo ainda não configurado</div>
-          As tabelas do Chōrei não existem no banco. Para ativar, rode uma vez no Supabase (SQL Editor) o arquivo{" "}
-          <b>sql/chorei_v1.sql</b> — ele cria as tabelas e já cadastra as equipes PCP, Almoxarifado e ADM.
-          Depois é só recarregar esta página.
+          As tabelas do Chōrei não existem no banco. Para ativar, rode uma vez no Supabase (SQL Editor) os arquivos{" "}
+          <b>sql/chorei_v1.sql</b> e <b>sql/chorei_v3.sql</b> — eles criam as tabelas (com etapas e observações
+          de projetos) e já cadastram as equipes PCP, Almoxarifado e ADM. Depois é só recarregar esta página.
         </div>
       ) : erro && (
         <div style={{ maxWidth:1080, margin:"0 auto 12px", padding:"10px 14px",
@@ -119,6 +127,9 @@ export function Chorei({ onSair, sessao }) {
           <EquipeDia
             equipe={equipeSel}
             itens={itens.filter(i => i.equipe_id === equipeSel.id)}
+            etapas={etapas}
+            notas={notas}
+            semV3={semV3}
             sessao={sessao}
             usuarios={usuarios}
             recarregar={recarregar}
