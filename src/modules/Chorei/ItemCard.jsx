@@ -2,7 +2,7 @@ import React from "react";
 const { useState } = React;
 import { C, SH } from "../../constants.js";
 import { TIPOS, STATUS, tipoInfo, statusInfo, prioridadeInfo, ehProjeto, ehTerminal, fmtData, fmtDataHora, hojeISO } from "./choreiconst.js";
-import { atualizarItem, apagarItem } from "./choreidb.js";
+import { atualizarItem, apagarItem, converterEmProjeto } from "./choreidb.js";
 
 const inp = { border:"1px solid "+C.line, borderRadius:8, padding:"7px 10px", fontSize:13, background:C.paper, color:C.ink, width:"100%" };
 const lab = { fontSize:11, color:C.muted, fontWeight:600, marginBottom:3 };
@@ -38,21 +38,36 @@ export function ItemCard({ item, sessao, usuarios, podeEscrever, recarregar, onE
   };
 
   const mudarStatus = async (novo) => {
+    // preserva dono e prazo (a RPC zera o que vier null)
+    const manter = { responsavelId: item.responsavel_id, responsavelNome: item.responsavel_nome, prazo: item.prazo };
     if (ehTerminal(novo)) {
       const r = window.prompt(`Como foi resolvido? (opcional)`);
       if (r === null) return;
       setBusy(true);
       try {
-        await atualizarItem(sessao.id, item.id, { status: novo, resolucao: r || null });
+        await atualizarItem(sessao.id, item.id, { ...manter, status: novo, resolucao: r || null });
         await recarregar();
       } catch (err) { onErro?.(err.message || String(err)); }
       setBusy(false);
     } else {
       setBusy(true);
-      try { await atualizarItem(sessao.id, item.id, { status: novo }); await recarregar(); }
+      try { await atualizarItem(sessao.id, item.id, { ...manter, status: novo }); await recarregar(); }
       catch (err) { onErro?.(err.message || String(err)); }
       setBusy(false);
     }
+  };
+
+  const virarProjeto = async () => {
+    if (!window.confirm("Transformar este item em projeto de longa duração? Ele sai do fluxo do dia e vai pra lista de projetos da equipe, levando dono, prazo e histórico.")) return;
+    setBusy(true);
+    try { await converterEmProjeto(sessao.id, item.id); await recarregar(); }
+    catch (err) {
+      const m = err.message || String(err);
+      onErro?.(/chorei_converter_em_projeto|schema cache/i.test(m)
+        ? "Pra converter em projeto, rode uma vez o sql/chorei_v4.sql no Supabase (SQL Editor) e tente de novo."
+        : m);
+    }
+    setBusy(false);
   };
 
   const apagar = async () => {
@@ -149,6 +164,12 @@ export function ItemCard({ item, sessao, usuarios, podeEscrever, recarregar, onE
                   → {s.label}
                 </button>
               ))}
+              {(item.tipo === "dificuldade" || item.tipo === "plano") && !ehTerminal(item.status) && (
+                <button onClick={virarProjeto} disabled={busy} title="Transformar em projeto de longa duração"
+                  style={{ background:"transparent", color:C.accent, border:"1px solid "+C.accent, borderRadius:6, padding:"3px 9px", fontSize:11.5, fontWeight:600, cursor:busy?"default":"pointer" }}>
+                  ◆ virar projeto
+                </button>
+              )}
               <button onClick={() => setEdit(true)}
                 style={{ marginLeft:"auto", background:"transparent", color:C.brand, border:"1px solid "+C.line, borderRadius:6, padding:"3px 9px", fontSize:11.5, cursor:"pointer" }}>
                 editar

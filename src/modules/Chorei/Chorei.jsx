@@ -8,9 +8,11 @@ import { EquipeDia } from "./EquipeDia.jsx";
 import { Historico } from "./Historico.jsx";
 import { Pendencias } from "./Pendencias.jsx";
 import { Equipes } from "./Equipes.jsx";
+import { Painel } from "./Painel.jsx";
 
 const TABS_BASE = [
   ["hoje",       "Hoje"],
+  ["painel",     "Painel"],
   ["pendencias", "Pendências"],
   ["historico",  "Histórico"],
 ];
@@ -89,8 +91,9 @@ export function Chorei({ onSair, sessao }) {
           background:C.sage, border:"1px solid "+C.brand2, borderRadius:12, color:C.ink, fontSize:14 }}>
           <div style={{ fontWeight:700, color:C.brand, fontSize:15, marginBottom:6 }}>⚙ Módulo ainda não configurado</div>
           As tabelas do Chōrei não existem no banco. Para ativar, rode uma vez no Supabase (SQL Editor) os arquivos{" "}
-          <b>sql/chorei_v1.sql</b> e <b>sql/chorei_v3.sql</b> — eles criam as tabelas (com etapas e observações
-          de projetos) e já cadastram as equipes PCP, Almoxarifado e ADM. Depois é só recarregar esta página.
+          <b>sql/chorei_v1.sql</b>, <b>sql/chorei_v3.sql</b> e <b>sql/chorei_v4.sql</b> — eles criam as tabelas
+          (com etapas e observações de projetos) e já cadastram as equipes PCP, Almoxarifado e ADM.
+          Depois é só recarregar esta página.
         </div>
       ) : erro && (
         <div style={{ maxWidth:1080, margin:"0 auto 12px", padding:"10px 14px",
@@ -134,6 +137,10 @@ export function Chorei({ onSair, sessao }) {
             usuarios={usuarios}
             recarregar={recarregar}
           />
+        )}
+
+        {tab === "painel" && (
+          <Painel equipes={equipes} itens={itens} etapas={etapas} usuarios={usuarios} />
         )}
 
         {tab === "pendencias" && (

@@ -72,7 +72,11 @@ export function ProjetoCard({ item, etapas, notas, sessao, usuarios, podeEscreve
       if (r === null) return;
       resolucao = r || null;
     }
-    await rode(() => atualizarItem(sessao.id, item.id, { status: novo, resolucao }))();
+    // preserva dono e prazo (a RPC zera o que vier null)
+    await rode(() => atualizarItem(sessao.id, item.id, {
+      responsavelId: item.responsavel_id, responsavelNome: item.responsavel_nome, prazo: item.prazo,
+      status: novo, resolucao,
+    }))();
   };
 
   const apagar = async () => {
@@ -299,8 +303,10 @@ export function ProjetoCard({ item, etapas, notas, sessao, usuarios, podeEscreve
                 )}
                 <div style={{ display:"flex", flexDirection:"column", gap:4 }}>
                   {notas.map(n => (
-                    <div key={n.id} style={{ padding:"6px 8px", background:C.paper, border:"1px solid "+C.line, borderRadius:7 }}>
-                      <div style={{ fontSize:12.5, color:C.ink, whiteSpace:"pre-wrap", lineHeight:1.35 }}>{n.texto}</div>
+                    <div key={n.id} style={{ padding:n.auto?"4px 8px":"6px 8px", background:n.auto?"transparent":C.paper,
+                      border:n.auto?"1px dashed "+C.line:"1px solid "+C.line, borderRadius:7 }}>
+                      <div style={{ fontSize:n.auto?11.5:12.5, color:n.auto?C.muted:C.ink, fontStyle:n.auto?"italic":"normal",
+                        whiteSpace:"pre-wrap", lineHeight:1.35 }}>{n.texto}</div>
                       <div style={{ display:"flex", gap:8, alignItems:"center", marginTop:3 }}>
                         <span style={{ fontSize:10.5, color:C.muted }}>
                           {n.autor_nome || "—"} · {fmtDataHora(n.criado_em)}
