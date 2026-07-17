@@ -2,9 +2,9 @@ import React from "react";
 const { useState } = React;
 import { C } from "../../constants.js";
 import { Stat } from "../../ui.jsx";
-import { S, hoje, num, inserir, rpc, msgErro, csv, Campo, Tabela, Form, Erro, Aviso, Titulo, useDados, Shell } from "./Common.jsx";
+import { S, hoje, num, inserir, rpc, msgErro, csv, Campo, Tabela, Form, Erro, Aviso, Titulo, useDados, Shell, BtnMini, Modal, Auditoria, cancelBadge } from "./Common.jsx";
 
-const TABELAS=["comb_veiculos","comb_tanques","comb_abastecimentos","comb_entradas"];
+const TABELAS=["comb_veiculos","comb_tanques","comb_abastecimentos","comb_entradas","op_auditoria"];
 const COMBUSTIVEIS=[["diesel","Diesel"],["gasolina","Gasolina"],["etanol","Etanol"],["gas","Gás"]];
 const nomeComb=v=>COMBUSTIVEIS.find(x=>x[0]===String(v).toLowerCase())?.[1]||v||"—";
 const unidadePadrao=comb=>comb==="gas"?"kg":"L";
@@ -56,36 +56,63 @@ function EntradaForm({tanques,nome,onSalvar}) {
   </Form>;
 }
 
-export function Abastecimento({onSair,nome}) {
+export function Abastecimento({onSair,nome,sessao}) {
   const [tab,setTab]=useState("abastecimentos");
+  const [verCanc,setVerCanc]=useState(false),[edit,setEdit]=useState(null);
   const {dados,loading,erro,recarregar,setErro}=useDados(TABELAS,"comb");
   const veiculos=dados.comb_veiculos||[],tanques=dados.comb_tanques||[],abastecimentos=dados.comb_abastecimentos||[],entradas=dados.comb_entradas||[];
+  const audit=(dados.op_auditoria||[]).filter(a=>a.modulo==="abastecimento");
   const veiculoPorId=Object.fromEntries(veiculos.map(x=>[x.id,x])),tanquePorId=Object.fromEntries(tanques.map(x=>[x.id,x]));
+  const uid=sessao?.id,unome=sessao?.nome||nome;
 
   const addVeiculo=async(f,el)=>{try{await inserir("comb_veiculos",{identificacao:f.get("identificacao").trim(),placa:f.get("placa").trim()||null,tipo:f.get("tipo").trim(),combustivel:f.get("combustivel"),ativo:true});el.reset();await recarregar()}catch(e){setErro(msgErro(e))}};
   const addTanque=async(f,el)=>{try{await inserir("comb_tanques",{nome:f.get("nome").trim(),combustivel:f.get("combustivel"),capacidade_l:Number(f.get("capacidade")),saldo_l:0,unidade:f.get("unidade"),ativo:true});el.reset();await recarregar()}catch(e){setErro(msgErro(e))}};
   const addAbastecimento=async(f,el)=>{try{await rpc("comb_registrar_abastecimento",{p_veiculo_id:f.get("veiculo_id"),p_tanque_id:f.get("tanque_id"),p_data:f.get("data"),p_quantidade:Number(f.get("quantidade")),p_odometro:f.get("odometro")?Number(f.get("odometro")):null,p_observacao:f.get("observacao")||null});el.reset();await recarregar()}catch(e){setErro(msgErro(e))}};
   const addEntrada=async(f,el)=>{try{await rpc("comb_registrar_entrada",{p_tanque_id:f.get("tanque_id"),p_data:f.get("data"),p_quantidade:Number(f.get("quantidade")),p_fornecedor:f.get("fornecedor")||null,p_documento:f.get("documento")||null,p_responsavel:f.get("responsavel")||nome||null,p_observacao:f.get("observacao")||null});el.reset();await recarregar()}catch(e){setErro(msgErro(e))}};
+  const setAtivo=async(entidade,x)=>{try{await rpc("op_definir_ativo",{p_usuario_id:uid,p_usuario_nome:unome,p_entidade:entidade,p_id:x.id,p_ativo:!x.ativo});await recarregar()}catch(e){setErro(msgErro(e))}};
+  const cancelar=async(tipo,x)=>{if(!confirm("Cancelar este lançamento? O saldo do tanque será ajustado automaticamente."))return;try{await rpc(tipo==="abastecimento"?"comb_cancelar_abastecimento":"comb_cancelar_entrada",{p_usuario_id:uid,p_usuario_nome:unome,p_id:x.id});await recarregar()}catch(e){setErro(msgErro(e))}};
+  const salvarEdit=async(f)=>{try{
+    if(edit.tipo==="abastecimento") await rpc("comb_editar_abastecimento",{p_usuario_id:uid,p_usuario_nome:unome,p_id:edit.reg.id,p_data:f.get("data"),p_quantidade:Number(f.get("quantidade")),p_odometro:f.get("odometro")?Number(f.get("odometro")):null,p_observacao:f.get("observacao")||null});
+    else await rpc("comb_editar_entrada",{p_usuario_id:uid,p_usuario_nome:unome,p_id:edit.reg.id,p_data:f.get("data"),p_quantidade:Number(f.get("quantidade")),p_fornecedor:f.get("fornecedor")||null,p_documento:f.get("documento")||null,p_observacao:f.get("observacao")||null});
+    setEdit(null);await recarregar();
+  }catch(e){setErro(msgErro(e))}};
 
-  const totaisPorUnidade=["L","m3","kg"].map(un=>({id:un,un,total:abastecimentos.filter(x=>x.unidade===un).reduce((s,x)=>s+Number(x.litros||0),0),entradas:entradas.filter(x=>x.unidade===un).reduce((s,x)=>s+Number(x.quantidade||0),0)})).filter(x=>x.total||x.entradas);
+  const abastecimentosView=abastecimentos.filter(x=>verCanc||!x.cancelado),entradasView=entradas.filter(x=>verCanc||!x.cancelado);
+  const acoesLanc=(tipo,x)=>x.cancelado?cancelBadge:<div style={{whiteSpace:"nowrap"}}><BtnMini onClick={()=>setEdit({tipo,reg:x})}>Editar</BtnMini><BtnMini cor={C.clay} onClick={()=>cancelar(tipo,x)}>Cancelar</BtnMini></div>;
+  const acaoAtivo=(entidade,x)=><BtnMini cor={x.ativo?C.clay:C.green} onClick={()=>setAtivo(entidade,x)}>{x.ativo?"Inativar":"Ativar"}</BtnMini>;
+  const totaisPorUnidade=["L","m3","kg"].map(un=>({id:un,un,total:abastecimentos.filter(x=>!x.cancelado&&x.unidade===un).reduce((s,x)=>s+Number(x.litros||0),0),entradas:entradas.filter(x=>!x.cancelado&&x.unidade===un).reduce((s,x)=>s+Number(x.quantidade||0),0)})).filter(x=>x.total||x.entradas);
 
   return <Shell titulo="Abastecimento" eyebrow="Sementes Veneza · Combustíveis internos"
-    tabs={[["abastecimentos","Abastecimentos"],["entradas","Entradas"],["veiculos","Veículos"],["tanques","Tanques"],["relatorios","Relatórios"]]} tab={tab} setTab={setTab} onSair={onSair} loading={loading}>
+    tabs={[["abastecimentos","Abastecimentos"],["entradas","Entradas"],["veiculos","Veículos"],["tanques","Tanques"],["relatorios","Relatórios"],["alteracoes","Alterações"]]} tab={tab} setTab={setTab} onSair={onSair} loading={loading}>
     <Erro msg={erro}/>
+    {edit&&<Modal titulo={edit.tipo==="abastecimento"?"Editar abastecimento":"Editar entrada"} onFechar={()=>setEdit(null)}>
+      <form onSubmit={e=>{e.preventDefault();salvarEdit(new FormData(e.currentTarget))}} style={{display:"flex",flexDirection:"column",gap:12}}>
+        <Campo label="Data"><input name="data" type="date" required defaultValue={edit.reg.data} style={S.input}/></Campo>
+        <Campo label={"Quantidade ("+(edit.reg.unidade==="m3"?"m³":(edit.reg.unidade||"L"))+")"}><input name="quantidade" type="number" min=".001" step=".001" required defaultValue={edit.tipo==="abastecimento"?edit.reg.litros:edit.reg.quantidade} style={S.input}/></Campo>
+        {edit.tipo==="abastecimento"
+          ? <Campo label="Odômetro/horímetro"><input name="odometro" type="number" min="0" step=".1" defaultValue={edit.reg.odometro||""} style={S.input}/></Campo>
+          : <><Campo label="Fornecedor/terceiro"><input name="fornecedor" defaultValue={edit.reg.fornecedor||""} style={S.input}/></Campo><Campo label="Documento/NF"><input name="documento" defaultValue={edit.reg.documento||""} style={S.input}/></Campo></>}
+        <Campo label="Observação"><input name="observacao" defaultValue={edit.reg.observacao||""} style={S.input}/></Campo>
+        <div style={{display:"flex",gap:10,marginTop:4}}><button style={S.btn}>Salvar</button><button type="button" style={S.btn2} onClick={()=>setEdit(null)}>Cancelar</button></div>
+      </form>
+    </Modal>}
     {tab==="abastecimentos"&&<><Aviso>Registre aqui somente o abastecimento interno de veículos e equipamentos. O saldo é baixado automaticamente do tanque.</Aviso>
       <Titulo>Novo abastecimento interno</Titulo><AbastecimentoForm veiculos={veiculos} tanques={tanques} onSalvar={addAbastecimento}/>
-      <Titulo>Histórico</Titulo><Tabela rows={abastecimentos} cols={[["data","Data"],["veiculo","Veículo/equipamento",x=>veiculoPorId[x.veiculo_id]?.identificacao||"—"],["tanque","Tanque",x=>tanquePorId[x.tanque_id]?.nome||"—"],["combustivel","Combustível",x=>nomeComb(x.combustivel)],["litros","Quantidade",x=>num(x.litros)+" "+(x.unidade==="m3"?"m³":x.unidade||"L")],["odometro","Odômetro/horímetro"],["observacao","Observação"]]}/></>}
+      <Titulo acao={<label style={{fontSize:12,color:C.muted,display:"flex",gap:6,alignItems:"center",textTransform:"none",letterSpacing:0,fontWeight:400}}><input type="checkbox" checked={verCanc} onChange={e=>setVerCanc(e.target.checked)}/>mostrar cancelados</label>}>Histórico</Titulo>
+      <Tabela rows={abastecimentosView} cols={[["data","Data"],["veiculo","Veículo/equipamento",x=>veiculoPorId[x.veiculo_id]?.identificacao||"—"],["tanque","Tanque",x=>tanquePorId[x.tanque_id]?.nome||"—"],["combustivel","Combustível",x=>nomeComb(x.combustivel)],["litros","Quantidade",x=>num(x.litros)+" "+(x.unidade==="m3"?"m³":x.unidade||"L")],["odometro","Odômetro/horímetro"],["observacao","Observação"],["acoes","Ações",x=>acoesLanc("abastecimento",x)]]}/></>}
     {tab==="entradas"&&<><Aviso>Use esta tela quando um fornecedor ou terceiro reabastecer um tanque da empresa. O saldo é acrescido automaticamente.</Aviso>
       <Titulo>Entrada de combustível</Titulo><EntradaForm tanques={tanques} nome={nome} onSalvar={addEntrada}/>
-      <Titulo>Histórico de entradas</Titulo><Tabela rows={entradas} cols={[["data","Data"],["tanque","Tanque",x=>tanquePorId[x.tanque_id]?.nome||"—"],["combustivel","Combustível",x=>nomeComb(x.combustivel)],["quantidade","Quantidade",x=>num(x.quantidade)+" "+(x.unidade==="m3"?"m³":x.unidade)],["fornecedor","Fornecedor"],["documento","Documento"],["responsavel","Responsável"]]}/></>}
+      <Titulo acao={<label style={{fontSize:12,color:C.muted,display:"flex",gap:6,alignItems:"center",textTransform:"none",letterSpacing:0,fontWeight:400}}><input type="checkbox" checked={verCanc} onChange={e=>setVerCanc(e.target.checked)}/>mostrar cancelados</label>}>Histórico de entradas</Titulo>
+      <Tabela rows={entradasView} cols={[["data","Data"],["tanque","Tanque",x=>tanquePorId[x.tanque_id]?.nome||"—"],["combustivel","Combustível",x=>nomeComb(x.combustivel)],["quantidade","Quantidade",x=>num(x.quantidade)+" "+(x.unidade==="m3"?"m³":x.unidade)],["fornecedor","Fornecedor"],["documento","Documento"],["responsavel","Responsável"],["acoes","Ações",x=>acoesLanc("entrada",x)]]}/></>}
     {tab==="veiculos"&&<><Titulo>Novo veículo/equipamento</Titulo><VeiculoForm onSalvar={addVeiculo}/>
-      <Titulo>Frota e equipamentos</Titulo><Tabela rows={veiculos} cols={[["identificacao","Identificação"],["placa","Placa/patrimônio"],["tipo","Tipo"],["combustivel","Combustível",x=>nomeComb(x.combustivel)],["ativo","Status",x=>x.ativo?"Ativo":"Inativo"]]}/></>}
+      <Titulo>Frota e equipamentos</Titulo><Tabela rows={veiculos} cols={[["identificacao","Identificação"],["placa","Placa/patrimônio"],["tipo","Tipo"],["combustivel","Combustível",x=>nomeComb(x.combustivel)],["ativo","Status",x=>x.ativo?"Ativo":"Inativo"],["acoes","Ações",x=>acaoAtivo("veiculo",x)]]}/></>}
     {tab==="tanques"&&<><Aviso>Tanques novos começam com saldo zero. Lance o primeiro abastecimento na aba Entradas.</Aviso>
       <Titulo>Novo tanque</Titulo><TanqueForm onSalvar={addTanque}/>
-      <Titulo>Tanques</Titulo><Tabela rows={tanques} cols={[["nome","Nome"],["combustivel","Combustível",x=>nomeComb(x.combustivel)],["capacidade_l","Capacidade",x=>num(x.capacidade_l)+" "+(x.unidade==="m3"?"m³":x.unidade)],["saldo_l","Saldo atual",x=><b style={{color:Number(x.saldo_l)<=Number(x.capacidade_l)*.15?C.clay:C.ink}}>{num(x.saldo_l)} {x.unidade==="m3"?"m³":x.unidade}</b>],["nivel","Nível",x=>x.capacidade_l?Math.round(x.saldo_l/x.capacidade_l*100)+"%":"—"]]}/></>}
-    {tab==="relatorios"&&<><div style={{display:"flex",gap:12,flexWrap:"wrap"}}><Stat rotulo="Abastecimentos" valor={abastecimentos.length}/><Stat rotulo="Entradas" valor={entradas.length}/><Stat rotulo="Veículos/equipamentos" valor={veiculos.filter(x=>x.ativo).length}/><Stat rotulo="Tanques ativos" valor={tanques.filter(x=>x.ativo).length}/></div>
+      <Titulo>Tanques</Titulo><Tabela rows={tanques} cols={[["nome","Nome"],["combustivel","Combustível",x=>nomeComb(x.combustivel)],["capacidade_l","Capacidade",x=>num(x.capacidade_l)+" "+(x.unidade==="m3"?"m³":x.unidade)],["saldo_l","Saldo atual",x=><b style={{color:Number(x.saldo_l)<=Number(x.capacidade_l)*.15?C.clay:C.ink}}>{num(x.saldo_l)} {x.unidade==="m3"?"m³":x.unidade}</b>],["nivel","Nível",x=>x.capacidade_l?Math.round(x.saldo_l/x.capacidade_l*100)+"%":"—"],["ativo","Status",x=>x.ativo?"Ativo":"Inativo"],["acoes","Ações",x=>acaoAtivo("tanque",x)]]}/></>}
+    {tab==="relatorios"&&<><div style={{display:"flex",gap:12,flexWrap:"wrap"}}><Stat rotulo="Abastecimentos" valor={abastecimentos.filter(x=>!x.cancelado).length}/><Stat rotulo="Entradas" valor={entradas.filter(x=>!x.cancelado).length}/><Stat rotulo="Veículos/equipamentos" valor={veiculos.filter(x=>x.ativo).length}/><Stat rotulo="Tanques ativos" valor={tanques.filter(x=>x.ativo).length}/></div>
       <Titulo>Movimentação por unidade</Titulo><Tabela rows={totaisPorUnidade} cols={[["un","Unidade",x=>x.un==="m3"?"m³":x.un],["entradas","Entradas",x=>num(x.entradas)],["total","Consumo interno",x=>num(x.total)]]}/>
-      <Titulo>Exportação</Titulo><button style={S.btn} onClick={()=>csv("abastecimentos.csv",[["Data","Veículo/equipamento","Tanque","Combustível","Quantidade","Unidade","Odômetro/horímetro","Observação"],...abastecimentos.map(x=>[x.data,veiculoPorId[x.veiculo_id]?.identificacao,tanquePorId[x.tanque_id]?.nome,nomeComb(x.combustivel),x.litros,x.unidade,x.odometro,x.observacao])])}>Baixar CSV</button>
+      <Titulo>Exportação</Titulo><button style={S.btn} onClick={()=>csv("abastecimentos.csv",[["Data","Veículo/equipamento","Tanque","Combustível","Quantidade","Unidade","Odômetro/horímetro","Observação","Cancelado"],...abastecimentos.map(x=>[x.data,veiculoPorId[x.veiculo_id]?.identificacao,tanquePorId[x.tanque_id]?.nome,nomeComb(x.combustivel),x.litros,x.unidade,x.odometro,x.observacao,x.cancelado?"sim":"não"])])}>Baixar CSV</button>
     </>}
+    {tab==="alteracoes"&&<Auditoria rows={audit}/>}
   </Shell>;
 }

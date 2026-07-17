@@ -48,6 +48,25 @@ export function Form({children,onSubmit,label="Salvar"}){return <form onSubmit={
 export function Erro({msg}){return msg&&<div style={{padding:10,background:"#FBEAE3",color:C.clay,border:"1px solid "+C.clay,borderRadius:9,marginBottom:12}}>Erro: {msg}</div>}
 export function Aviso({children}){return <div style={{padding:10,background:C.sage,color:C.brand,border:"1px solid "+C.line,borderRadius:9,marginBottom:12}}>{children}</div>}
 export function Titulo({children,acao}){return <div style={{display:"flex",alignItems:"center",gap:10,margin:"28px 0 12px"}}><h2 style={{fontSize:13,fontWeight:700,letterSpacing:.8,textTransform:"uppercase",color:C.brand,margin:0,flex:1}}>{children}</h2>{acao}</div>}
+export function BtnMini({onClick,children,cor}){return <button type="button" onClick={onClick} style={{padding:"4px 9px",border:"1px solid "+(cor||C.line),borderRadius:7,background:"transparent",color:cor||C.brand,fontSize:12,fontWeight:600,cursor:"pointer",marginRight:6,whiteSpace:"nowrap"}}>{children}</button>}
+export const cancelBadge = <span style={{color:C.clay,fontWeight:700,fontSize:12}}>Cancelado</span>;
+export function Modal({titulo,onFechar,children}){
+  return <div onClick={onFechar} style={{position:"fixed",inset:0,background:"rgba(28,42,54,.5)",zIndex:100,display:"flex",alignItems:"flex-start",justifyContent:"center",padding:"24px 16px",overflowY:"auto"}}>
+    <div onClick={e=>e.stopPropagation()} style={{...S.card,width:"100%",maxWidth:460}}>
+      {titulo&&<div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}><b style={{color:C.brand,fontSize:16}}>{titulo}</b><span onClick={onFechar} style={{...S.btn2,cursor:"pointer"}}>Fechar</span></div>}
+      {children}
+    </div>
+  </div>;
+}
+export function Auditoria({rows}){
+  return <Tabela rows={rows} vazio="Nenhuma alteração registrada." cols={[
+    ["criado_em","Quando",x=>new Date(x.criado_em).toLocaleString("pt-BR")],
+    ["usuario_nome","Usuário",x=>x.usuario_nome||"—"],
+    ["entidade","Item"],
+    ["acao","Ação",x=>({editar:"Editou",cancelar:"Cancelou",ativar:"Ativou",inativar:"Inativou"}[x.acao]||x.acao)],
+    ["resumo","Detalhe"],
+  ]}/>;
+}
 export function useDados(tabelas,prefixo){
   const [dados,setDados]=useState({}),[loading,setLoading]=useState(true),[erro,setErro]=useState("");
   const recarregar=useCallback(async()=>{try{const vals=await Promise.all(tabelas.map(t=>listar(t)));setDados(Object.fromEntries(tabelas.map((t,i)=>[t,vals[i]||[]])));setErro("")}catch(e){setErro(msgErro(e))}finally{setLoading(false)}},[tabelas.join("|")]);
