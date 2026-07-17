@@ -289,8 +289,8 @@ export function EquipeDia({ equipe, itens, etapas = [], notas = [], semV3 = fals
           </div>
         )}
 
-        {/* Lista de projetos */}
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(280px, 1fr))", gap:10, marginTop:12 }}>
+        {/* Lista de projetos — um por linha */}
+        <div style={{ display:"flex", flexDirection:"column", gap:10, marginTop:12 }}>
           {projetosAbertos.length === 0 && !verConcluidos && (
             <div style={{ fontSize:12.5, color:C.muted, fontStyle:"italic" }}>
               Nenhum projeto em andamento. {podeEscrever ? "Adicione acima o que a equipe está tocando a médio/longo prazo." : ""}
