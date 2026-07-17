@@ -3,9 +3,21 @@
 -- Move um projeto/atividade de longa duração para outra equipe. Etapas
 -- e observações não precisam de nada especial: elas dependem só do
 -- item_id, que não muda — só o dono (equipe_id) do item muda.
--- Idempotente. Pressupõe v1 e v4 (usa chorei_pode_escrever/chorei_nota_auto).
+-- Idempotente e autossuficiente: recria a coluna "auto" e a função
+-- chorei_nota_auto (do chorei_v4.sql) caso ainda não existam, sem
+-- exigir que o v4 tenha rodado antes. Pressupõe só o v1 e o v3.
 -- =====================================================================
 begin;
+
+alter table public.chorei_projeto_notas add column if not exists auto boolean not null default false;
+
+create or replace function public.chorei_nota_auto(p_user_id uuid, p_item_id uuid, p_texto text)
+returns void language sql security definer set search_path = public as $$
+  insert into public.chorei_projeto_notas(item_id, texto, autor_id, autor_nome, auto)
+  values (p_item_id, p_texto, p_user_id,
+    (select nome from public.app_usuarios where id = p_user_id), true);
+$$;
+revoke execute on function public.chorei_nota_auto(uuid, uuid, text) from public, anon, authenticated;
 
 create or replace function public.chorei_transferir_projeto(
   p_user_id uuid, p_id uuid, p_equipe_destino_id uuid
