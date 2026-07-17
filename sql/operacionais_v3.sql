@@ -36,6 +36,52 @@ alter table public.alm_movimentacoes   add column if not exists cancelado boolea
 alter table public.comb_abastecimentos add column if not exists cancelado boolean not null default false;
 alter table public.comb_entradas       add column if not exists cancelado boolean not null default false;
 
+-- ---------- Correção: "diferenca" é coluna gerada no banco real --------
+-- No Supabase real, alm_inventario_itens.diferenca é generated always
+-- (contagem_fisica - saldo_sistema); não pode receber INSERT/UPDATE
+-- direto. As funções abaixo param de escrever nela.
+do $$ begin
+  if not exists (select 1 from information_schema.columns where table_schema='public' and table_name='alm_inventario_itens' and column_name='diferenca') then
+    alter table public.alm_inventario_itens
+      add column diferenca numeric generated always as (contagem_fisica - saldo_sistema) stored;
+  end if;
+end $$;
+
+create or replace function public.alm_abrir_inventario(
+  p_data date default current_date, p_responsavel text default null, p_observacao text default null
+) returns uuid
+language plpgsql security definer set search_path=public as $$
+declare v_id uuid;
+begin
+  insert into public.alm_inventarios(data,status,responsavel,observacao)
+  values(coalesce(p_data,current_date),'aberto',nullif(trim(p_responsavel),''),nullif(trim(p_observacao),''))
+  returning id into v_id;
+  insert into public.alm_inventario_itens(inventario_id,item_id,saldo_sistema,contagem_fisica)
+  select v_id,i.id,
+    coalesce(sum(case when m.tipo='entrada' then m.quantidade else -m.quantidade end),0),
+    greatest(coalesce(sum(case when m.tipo='entrada' then m.quantidade else -m.quantidade end),0),0)
+  from public.alm_itens i
+  left join public.alm_movimentacoes m on m.item_id=i.id
+  where i.ativo
+  group by i.id;
+  return v_id;
+end $$;
+
+create or replace function public.alm_atualizar_contagem(p_inventario_item_id uuid,p_contagem numeric)
+returns public.alm_inventario_itens
+language plpgsql security definer set search_path=public as $$
+declare v_item public.alm_inventario_itens;
+begin
+  if p_contagem < 0 then raise exception 'A contagem não pode ser negativa'; end if;
+  update public.alm_inventario_itens ii
+  set contagem_fisica=p_contagem
+  from public.alm_inventarios inv
+  where ii.id=p_inventario_item_id and inv.id=ii.inventario_id and inv.status='aberto'
+  returning ii.* into v_item;
+  if not found then raise exception 'Inventário não encontrado ou já encerrado'; end if;
+  return v_item;
+end $$;
+
 -- ---------- Ativar / inativar cadastros (categoria, unidade, veículo, tanque) --
 -- (item já tem edição completa própria — alm_atualizar_item, abaixo)
 create or replace function public.op_definir_ativo(
