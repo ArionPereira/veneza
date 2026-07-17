@@ -1,9 +1,9 @@
 import React from "react";
 const { useState, useEffect, useMemo } = React;
 import { C, SERIF, SH } from "../../constants.js";
-import { tipoInfo, prioridadeInfo, ehProjeto, ehTerminal, fmtData, hojeISO } from "./choreiconst.js";
+import { tipoInfo, prioridadeInfo, ehProjeto, ehTerminal, badge, fmtData, hojeISO } from "./choreiconst.js";
 
-const chip = (cor) => ({ fontSize:11, fontWeight:700, color:"#fff", background:cor, borderRadius:20, padding:"2px 9px", whiteSpace:"nowrap" });
+const chip = (cor) => ({ ...badge(cor), fontSize:11 });
 
 function copiarTexto(txt) {
   if (navigator.clipboard?.writeText) return navigator.clipboard.writeText(txt);

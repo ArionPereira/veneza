@@ -63,19 +63,27 @@ export function Pendencias({ equipes, itens, sessao, usuarios, recarregar }) {
   return (
     <div style={{ marginTop:16 }}>
       {/* Barra de métricas */}
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(160px, 1fr))", gap:10, marginBottom:14 }}>
-        <div style={{ background:C.card, border:"1px solid "+C.line, borderLeft:"3px solid "+C.clay, borderRadius:10, padding:"10px 12px" }}>
-          <div style={{ fontSize:11, color:C.muted, fontWeight:600 }}>Atrasadas</div>
-          <div style={{ fontFamily:SERIF, fontSize:22, color:C.clay, fontWeight:700 }}>{contagens.atrasadas}</div>
-        </div>
-        <div style={{ background:C.card, border:"1px solid "+C.line, borderLeft:"3px solid "+C.muted, borderRadius:10, padding:"10px 12px" }}>
-          <div style={{ fontSize:11, color:C.muted, fontWeight:600 }}>Abertas</div>
-          <div style={{ fontFamily:SERIF, fontSize:22, color:C.ink, fontWeight:700 }}>{contagens.abertas}</div>
-        </div>
-        <div style={{ background:C.card, border:"1px solid "+C.line, borderLeft:"3px solid #B07D10", borderRadius:10, padding:"10px 12px" }}>
-          <div style={{ fontSize:11, color:C.muted, fontWeight:600 }}>Em andamento</div>
-          <div style={{ fontFamily:SERIF, fontSize:22, color:C.ink, fontWeight:700 }}>{contagens.emAndamento}</div>
-        </div>
+      <div style={{ display:"flex", gap:10, flexWrap:"wrap", marginBottom:14 }}>
+        {[
+          { icone:"⏰", rotulo:"Atrasadas",    valor:contagens.atrasadas,   cor:C.clay },
+          { icone:"○",  rotulo:"Abertas",      valor:contagens.abertas,     cor:C.brand },
+          { icone:"→",  rotulo:"Em andamento", valor:contagens.emAndamento, cor:"#B07D10" },
+        ].map(m => (
+          <div key={m.rotulo} style={{ background:C.card, border:"1px solid "+C.line, borderRadius:10,
+            padding:"8px 14px", display:"flex", alignItems:"center", gap:10, flex:"1 1 150px", maxWidth:230 }}>
+            <span style={{ width:32, height:32, borderRadius:"50%", background:m.cor+"14", color:m.cor,
+              display:"flex", alignItems:"center", justifyContent:"center", fontSize:14, fontWeight:700, flexShrink:0 }}>
+              {m.icone}
+            </span>
+            <div>
+              <div style={{ fontFamily:SERIF, fontSize:20, fontWeight:700, lineHeight:1,
+                color:m.valor > 0 ? m.cor : C.muted }}>{m.valor}</div>
+              <div style={{ fontSize:10.5, color:C.muted, fontWeight:600, textTransform:"uppercase", letterSpacing:.4, marginTop:2 }}>
+                {m.rotulo}
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* Filtros */}

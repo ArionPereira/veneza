@@ -1,12 +1,12 @@
 import React from "react";
 const { useState } = React;
 import { C, SH } from "../../constants.js";
-import { STATUS, prioridadeInfo, PRIORIDADES, statusInfo, ehTerminal, fmtData, fmtDataHora, hojeISO } from "./choreiconst.js";
+import { STATUS, prioridadeInfo, PRIORIDADES, statusInfo, ehTerminal, badge, fmtData, fmtDataHora, hojeISO } from "./choreiconst.js";
 import { atualizarItem, apagarItem, salvarEtapa, marcarEtapa, apagarEtapa, criarNota, apagarNota } from "./choreidb.js";
 
 const inp = { border:"1px solid "+C.line, borderRadius:8, padding:"7px 10px", fontSize:13, background:C.paper, color:C.ink, width:"100%", boxSizing:"border-box" };
 const lab = { fontSize:11, color:C.muted, fontWeight:600, marginBottom:3 };
-const pill = (cor) => ({ fontSize:10.5, fontWeight:700, color:"#fff", background:cor, borderRadius:20, padding:"2px 8px", whiteSpace:"nowrap" });
+const pill = badge;
 
 function BarraProgresso({ feitas, total }) {
   if (!total) return null;

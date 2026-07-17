@@ -1,7 +1,7 @@
 import React from "react";
 const { useState } = React;
-import { C, SH } from "../../constants.js";
-import { TIPOS, STATUS, tipoInfo, statusInfo, prioridadeInfo, ehProjeto, ehTerminal, fmtData, fmtDataHora, hojeISO } from "./choreiconst.js";
+import { C, SH, SH2 } from "../../constants.js";
+import { STATUS, tipoInfo, statusInfo, prioridadeInfo, ehProjeto, ehTerminal, badge, fmtData, fmtDataHora, hojeISO } from "./choreiconst.js";
 import { atualizarItem, apagarItem, converterEmProjeto } from "./choreidb.js";
 
 const inp = { border:"1px solid "+C.line, borderRadius:8, padding:"7px 10px", fontSize:13, background:C.paper, color:C.ink, width:"100%" };
@@ -9,17 +9,17 @@ const lab = { fontSize:11, color:C.muted, fontWeight:600, marginBottom:3 };
 
 export function ItemCard({ item, sessao, usuarios, podeEscrever, recarregar, onErro, mostrarEquipe }) {
   const [edit, setEdit] = useState(false);
+  const [menu, setMenu] = useState(false);
   const [texto,   setTexto]   = useState(item.texto);
   const [resp,    setResp]    = useState(item.responsavel_id || "");
   const [prazo,   setPrazo]   = useState(item.prazo || "");
-  const [resolucao, setResolucao] = useState(item.resolucao || "");
   const [busy, setBusy] = useState(false);
 
   const tinf = tipoInfo(item.tipo);
   const sinf = statusInfo(item.status);
   const isPrazoVencido = item.prazo && item.prazo < hojeISO() && !ehTerminal(item.status);
 
-  const salvar = async (statusNovo) => {
+  const salvar = async () => {
     setBusy(true);
     try {
       const respUser = usuarios.find(u => u.id === resp);
@@ -28,8 +28,6 @@ export function ItemCard({ item, sessao, usuarios, podeEscrever, recarregar, onE
         responsavelId: resp || null,
         responsavelNome: respUser?.nome ?? item.responsavel_nome ?? null,
         prazo: prazo || null,
-        status: statusNovo ?? null,
-        resolucao: statusNovo && ehTerminal(statusNovo) ? (resolucao || null) : null,
       });
       setEdit(false);
       await recarregar();
@@ -80,38 +78,38 @@ export function ItemCard({ item, sessao, usuarios, podeEscrever, recarregar, onE
 
   const dono = item.responsavel_nome || (usuarios.find(u => u.id === item.responsavel_id)?.nome) || null;
 
+  // menu "⋯": transições de status + demais ações
+  const acoes = [];
+  STATUS.filter(s => s.id !== item.status && (!s.soProjeto || ehProjeto(item)))
+    .forEach(s => acoes.push({ rotulo: "→ " + s.label, cor: s.cor, run: () => mudarStatus(s.id) }));
+  if ((item.tipo === "dificuldade" || item.tipo === "plano") && !ehTerminal(item.status))
+    acoes.push({ rotulo: "◆ Virar projeto", cor: C.accent, run: virarProjeto });
+  acoes.push({ rotulo: "✎ Editar", cor: C.ink, run: () => setEdit(true) });
+  acoes.push({ rotulo: "Apagar", cor: C.clay, run: apagar });
+
   return (
     <div style={{
-      background:C.card, border:"1px solid "+(isPrazoVencido ? C.clay : C.line),
-      borderLeft:"3px solid "+(tinf.cor || C.brand), borderRadius:10, padding:"9px 11px",
-      boxShadow:SH, opacity: ehTerminal(item.status) ? 0.7 : 1,
+      background:C.card, border:"1px solid "+C.line,
+      borderLeft:"3px solid "+(isPrazoVencido ? C.clay : (tinf.cor || C.brand)),
+      borderRadius:10, padding:"10px 12px",
+      boxShadow:SH, opacity: ehTerminal(item.status) ? 0.65 : 1,
     }}>
-      <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap", marginBottom:4 }}>
-        <span style={{ fontSize:10.5, fontWeight:700, color:"#fff", background:tinf.cor, borderRadius:20, padding:"2px 8px" }}>
-          {tinf.icone} {tinf.label}
-        </span>
-        <span style={{ fontSize:10.5, fontWeight:700, color:"#fff", background:sinf.cor, borderRadius:20, padding:"2px 8px" }}>
-          {sinf.label}
-        </span>
-        {ehProjeto(item) && item.prioridade && (
-          <span style={{ fontSize:10.5, fontWeight:700, color:"#fff", background:prioridadeInfo(item.prioridade).cor, borderRadius:20, padding:"2px 8px" }}>
-            {prioridadeInfo(item.prioridade).label}
-          </span>
+      <div style={{ display:"flex", alignItems:"center", gap:5, flexWrap:"wrap" }}>
+        <span style={badge(tinf.cor || C.brand)}>{tinf.icone} {tinf.label}</span>
+        {item.status !== "aberto" && <span style={badge(sinf.cor)}>{sinf.label}</span>}
+        {ehProjeto(item) && item.prioridade && item.prioridade !== "media" && (
+          <span style={badge(prioridadeInfo(item.prioridade).cor)}>{prioridadeInfo(item.prioridade).label}</span>
         )}
         {mostrarEquipe && item._equipeNome && (
-          <span style={{ fontSize:10.5, fontWeight:700, color:"#fff", background:item._equipeCor||C.brand, borderRadius:20, padding:"2px 8px" }}>
-            {item._equipeNome}
-          </span>
+          <span style={badge(item._equipeCor || C.brand)}>{item._equipeNome}</span>
         )}
-        {isPrazoVencido && (
-          <span style={{ fontSize:10.5, fontWeight:700, color:C.clay }}>⏰ atrasado</span>
-        )}
+        {isPrazoVencido && <span style={badge(C.clay)}>⏰ atrasado</span>}
         <span style={{ marginLeft:"auto", fontSize:11, color:C.muted }}>{fmtDataHora(item.criado_em)}</span>
       </div>
 
       {edit ? (
         <>
-          <textarea value={texto} onChange={e => setTexto(e.target.value)} rows={2} style={{...inp, resize:"vertical", marginBottom:8}} />
+          <textarea value={texto} onChange={e => setTexto(e.target.value)} rows={2} style={{...inp, resize:"vertical", margin:"8px 0"}} />
           <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:8 }}>
             <div style={{ flex:"1 1 140px" }}>
               <div style={lab}>Dono</div>
@@ -142,42 +140,57 @@ export function ItemCard({ item, sessao, usuarios, podeEscrever, recarregar, onE
         </>
       ) : (
         <>
-          <div style={{ fontSize:13.5, color:C.ink, whiteSpace:"pre-wrap", lineHeight:1.35 }}>{item.texto}</div>
-          <div style={{ fontSize:11.5, color:C.muted, marginTop:5, display:"flex", gap:10, flexWrap:"wrap" }}>
-            {dono && <span>👤 {dono}</span>}
-            {item.prazo && <span>📅 {fmtData(item.prazo)}</span>}
-            {item.autor_nome && <span style={{ marginLeft:"auto" }}>criado por {item.autor_nome}</span>}
-          </div>
+          <div style={{ fontSize:13.5, color:C.ink, whiteSpace:"pre-wrap", lineHeight:1.4, margin:"6px 0 0" }}>{item.texto}</div>
+
+          {(dono || item.prazo || item.autor_nome) && (
+            <div style={{ fontSize:11.5, color:C.muted, marginTop:5, display:"flex", gap:12, flexWrap:"wrap" }}>
+              {dono && <span>👤 {dono}</span>}
+              {item.prazo && <span style={{ color:isPrazoVencido ? C.clay : C.muted }}>📅 {fmtData(item.prazo)}</span>}
+              {item.autor_nome && <span>por {item.autor_nome}</span>}
+            </div>
+          )}
+
           {item.resolucao && (
             <div style={{ marginTop:6, padding:"6px 8px", background:C.sage, border:"1px solid "+C.line, borderRadius:7, fontSize:12, color:C.ink }}>
               <b style={{ color:C.brand }}>Resolução:</b> {item.resolucao}
             </div>
           )}
+
           {podeEscrever && (
-            <div style={{ display:"flex", gap:5, flexWrap:"wrap", marginTop:8, borderTop:"1px dashed "+C.line, paddingTop:8 }}>
-              {STATUS.filter(s => s.id !== item.status && (!s.soProjeto || ehProjeto(item))).map(s => (
-                <button key={s.id} onClick={() => mudarStatus(s.id)} disabled={busy} title={"Mudar para "+s.label}
-                  style={{ background: ehTerminal(s.id) ? s.cor : "transparent",
-                    color: ehTerminal(s.id) ? "#fff" : s.cor,
-                    border: ehTerminal(s.id) ? "none" : "1px solid "+s.cor,
-                    borderRadius:6, padding:"3px 9px", fontSize:11.5, fontWeight:600, cursor:busy?"default":"pointer" }}>
-                  → {s.label}
-                </button>
-              ))}
-              {(item.tipo === "dificuldade" || item.tipo === "plano") && !ehTerminal(item.status) && (
-                <button onClick={virarProjeto} disabled={busy} title="Transformar em projeto de longa duração"
-                  style={{ background:"transparent", color:C.accent, border:"1px solid "+C.accent, borderRadius:6, padding:"3px 9px", fontSize:11.5, fontWeight:600, cursor:busy?"default":"pointer" }}>
-                  ◆ virar projeto
+            <div style={{ display:"flex", alignItems:"center", gap:6, marginTop:8 }}>
+              {!ehTerminal(item.status) && (
+                <button onClick={() => mudarStatus("resolvido")} disabled={busy}
+                  style={{ background:C.green+"12", color:C.green, border:"1px solid "+C.green+"40",
+                    borderRadius:7, padding:"4px 12px", fontSize:12, fontWeight:700, cursor:busy?"default":"pointer" }}>
+                  ✓ Resolver
                 </button>
               )}
-              <button onClick={() => setEdit(true)}
-                style={{ marginLeft:"auto", background:"transparent", color:C.brand, border:"1px solid "+C.line, borderRadius:6, padding:"3px 9px", fontSize:11.5, cursor:"pointer" }}>
-                editar
-              </button>
-              <button onClick={apagar} disabled={busy}
-                style={{ background:"transparent", color:C.clay, border:"1px solid "+C.line, borderRadius:6, padding:"3px 9px", fontSize:11.5, cursor:busy?"default":"pointer" }}>
-                apagar
-              </button>
+              <div style={{ position:"relative", marginLeft:"auto" }}>
+                <button onClick={() => setMenu(m => !m)} disabled={busy} title="Mais ações"
+                  style={{ background:"transparent", color:C.muted, border:"1px solid "+C.line,
+                    borderRadius:7, padding:"2px 10px", fontSize:15, lineHeight:1.4, cursor:"pointer", fontWeight:700 }}>
+                  ⋯
+                </button>
+                {menu && (
+                  <>
+                    <div onClick={() => setMenu(false)} style={{ position:"fixed", inset:0, zIndex:60 }} />
+                    <div style={{ position:"absolute", right:0, top:"calc(100% + 4px)", zIndex:61,
+                      background:C.card, border:"1px solid "+C.line, borderRadius:10, boxShadow:SH2,
+                      minWidth:180, padding:4 }}>
+                      {acoes.map(a => (
+                        <button key={a.rotulo} onClick={() => { setMenu(false); a.run(); }}
+                          style={{ display:"block", width:"100%", textAlign:"left", background:"transparent",
+                            border:"none", padding:"7px 11px", fontSize:12.5, fontWeight:600,
+                            color:a.cor, cursor:"pointer", borderRadius:7 }}
+                          onMouseEnter={e => e.currentTarget.style.background = C.sage}
+                          onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                          {a.rotulo}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           )}
         </>

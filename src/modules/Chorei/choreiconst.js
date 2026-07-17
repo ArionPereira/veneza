@@ -33,6 +33,13 @@ export const prioridadeInfo = (id) => PRIORIDADES.find(p => p.id === id) || PRIO
 export const pesoPrioridade = (id) => ({ alta:0, media:1, baixa:2 }[id] ?? 1);
 
 export const tipoInfo   = (id) => TIPOS.find(t => t.id === id) || (id === TIPO_PROJETO.id ? TIPO_PROJETO : {});
+
+// Badge suave: texto colorido sobre fundo tintado (cor precisa ser hex de 6 dígitos)
+export const badge = (cor) => ({
+  fontSize:10.5, fontWeight:700, color:cor, background:cor+"14",
+  border:"1px solid "+cor+"2E", borderRadius:20, padding:"1.5px 9px",
+  whiteSpace:"nowrap", lineHeight:1.6,
+});
 export const statusInfo = (id) => STATUS.find(s => s.id === id) || {};
 export const ehTerminal = (s)  => s === "resolvido" || s === "cancelado";
 
