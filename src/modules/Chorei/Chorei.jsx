@@ -129,6 +129,7 @@ export function Chorei({ onSair, sessao }) {
         {tab === "hoje" && equipeSel && (
           <EquipeDia
             equipe={equipeSel}
+            equipes={equipes}
             itens={itens.filter(i => i.equipe_id === equipeSel.id)}
             etapas={etapas}
             notas={notas}

@@ -10,7 +10,7 @@ const inp = { border:"1px solid "+C.line, borderRadius:8, padding:"8px 10px", fo
 const lab = { fontSize:11, color:C.muted, fontWeight:600, marginBottom:3 };
 
 // tela do dia — três colunas com os blocos + form pra adicionar
-export function EquipeDia({ equipe, itens, etapas = [], notas = [], semV3 = false, sessao, usuarios, recarregar }) {
+export function EquipeDia({ equipe, equipes = [], itens, etapas = [], notas = [], semV3 = false, sessao, usuarios, recarregar }) {
   const [erro, setErro] = useState("");
   const [novo, setNovo] = useState({ tipo:"dificuldade", texto:"", responsavel:"", prazo:"" });
   const [salvando, setSalvando] = useState(false);
@@ -297,14 +297,14 @@ export function EquipeDia({ equipe, itens, etapas = [], notas = [], semV3 = fals
             </div>
           )}
           {projetosAbertos.map(i => (
-            <ProjetoCard key={i.id} item={i} sessao={sessao} usuarios={usuarios}
+            <ProjetoCard key={i.id} item={i} sessao={sessao} usuarios={usuarios} equipes={equipes}
               etapas={etapas.filter(e => e.item_id === i.id)}
               notas={notas.filter(n => n.item_id === i.id)}
               semV3={semV3}
               podeEscrever={podeEscrever} recarregar={recarregar} onErro={setErro} />
           ))}
           {verConcluidos && projetosConcluidos.map(i => (
-            <ProjetoCard key={i.id} item={i} sessao={sessao} usuarios={usuarios}
+            <ProjetoCard key={i.id} item={i} sessao={sessao} usuarios={usuarios} equipes={equipes}
               etapas={etapas.filter(e => e.item_id === i.id)}
               notas={notas.filter(n => n.item_id === i.id)}
               semV3={semV3}

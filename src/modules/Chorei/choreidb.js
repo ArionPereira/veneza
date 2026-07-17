@@ -62,6 +62,9 @@ export const apagarNota = (userId, id) =>
 export const converterEmProjeto = (userId, id) =>
   ok(sb.rpc("chorei_converter_em_projeto", { p_user_id: userId, p_id: id }));
 
+export const transferirProjeto = (userId, id, equipeDestinoId) =>
+  ok(sb.rpc("chorei_transferir_projeto", { p_user_id: userId, p_id: id, p_equipe_destino_id: equipeDestinoId }));
+
 export const apagarItem = (userId, id) =>
   ok(sb.rpc("chorei_apagar_item", { p_user_id: userId, p_id: id }));
 

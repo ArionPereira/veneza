@@ -2,7 +2,7 @@ import React from "react";
 const { useState } = React;
 import { C, SH } from "../../constants.js";
 import { STATUS, prioridadeInfo, PRIORIDADES, statusInfo, ehTerminal, badge, fmtData, fmtDataHora, hojeISO } from "./choreiconst.js";
-import { atualizarItem, apagarItem, salvarEtapa, marcarEtapa, apagarEtapa, criarNota, apagarNota } from "./choreidb.js";
+import { atualizarItem, apagarItem, salvarEtapa, marcarEtapa, apagarEtapa, criarNota, apagarNota, transferirProjeto } from "./choreidb.js";
 
 const inp = { border:"1px solid "+C.line, borderRadius:8, padding:"7px 10px", fontSize:13, background:C.paper, color:C.ink, width:"100%", boxSizing:"border-box" };
 const lab = { fontSize:11, color:C.muted, fontWeight:600, marginBottom:3 };
@@ -23,7 +23,7 @@ function BarraProgresso({ feitas, total }) {
 
 // Cartão de projeto/atividade de longa duração: compacto na lista, expande
 // pra mostrar etapas (checklist com progresso) e observações (diário).
-export function ProjetoCard({ item, etapas, notas, sessao, usuarios, podeEscrever, recarregar, onErro, semV3 }) {
+export function ProjetoCard({ item, etapas, notas, sessao, usuarios, equipes = [], podeEscrever, recarregar, onErro, semV3 }) {
   const [aberto, setAberto] = useState(false);
   const [edit,   setEdit]   = useState(false);
   const [busy,   setBusy]   = useState(false);
@@ -82,6 +82,15 @@ export function ProjetoCard({ item, etapas, notas, sessao, usuarios, podeEscreve
   const apagar = async () => {
     if (!window.confirm("Apagar este projeto (com etapas e observações)?")) return;
     await rode(() => apagarItem(sessao.id, item.id))();
+  };
+
+  const outrasEquipes = equipes.filter(e => e.ativo && e.id !== item.equipe_id);
+  const transferir = async (equipeDestinoId, ev) => {
+    if (!equipeDestinoId) return;
+    const destino = outrasEquipes.find(e => e.id === equipeDestinoId);
+    if (!window.confirm(`Transferir este projeto para a equipe "${destino?.nome || ""}"?`)) { if (ev) ev.target.value = ""; return; }
+    await rode(() => transferirProjeto(sessao.id, item.id, equipeDestinoId))();
+    if (ev) ev.target.value = "";
   };
 
   const addEtapa = rode(async () => {
@@ -197,8 +206,16 @@ export function ProjetoCard({ item, etapas, notas, sessao, usuarios, podeEscreve
                       → {s.label}
                     </button>
                   ))}
+                  {outrasEquipes.length > 0 && (
+                    <select defaultValue="" disabled={busy} onChange={e => transferir(e.target.value, e)}
+                      title="Transferir projeto para outra equipe"
+                      style={{ marginLeft:"auto", background:"transparent", color:C.brand2, border:"1px solid "+C.line, borderRadius:6, padding:"3px 6px", fontSize:11.5, cursor:busy?"default":"pointer" }}>
+                      <option value="">transferir para…</option>
+                      {outrasEquipes.map(e => <option key={e.id} value={e.id}>{e.nome}</option>)}
+                    </select>
+                  )}
                   <button onClick={() => setEdit(true)}
-                    style={{ marginLeft:"auto", background:"transparent", color:C.brand, border:"1px solid "+C.line, borderRadius:6, padding:"3px 9px", fontSize:11.5, cursor:"pointer" }}>
+                    style={{ marginLeft:outrasEquipes.length>0?0:"auto", background:"transparent", color:C.brand, border:"1px solid "+C.line, borderRadius:6, padding:"3px 9px", fontSize:11.5, cursor:"pointer" }}>
                     editar
                   </button>
                   <button onClick={apagar} disabled={busy}
