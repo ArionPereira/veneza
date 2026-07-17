@@ -11,6 +11,11 @@ export const TIPOS = [
   { id: "aviso",       label: "Aviso",                  icone: "!", cor: "#B07D10" },
 ];
 
+// Projetos/atividades de longa duração: não entram no fluxo do dia (nem em
+// "pendentes de ontem") — vivem numa lista própria dentro de cada equipe.
+export const TIPO_PROJETO = { id: "projeto", label: "Projeto", icone: "◆", cor: C.accent };
+export const ehProjeto = (item) => item?.tipo === TIPO_PROJETO.id;
+
 export const STATUS = [
   { id: "aberto",       label: "Aberto",       cor: C.muted },
   { id: "em_andamento", label: "Em andamento", cor: "#B07D10" },
@@ -18,7 +23,7 @@ export const STATUS = [
   { id: "cancelado",    label: "Cancelado",    cor: C.clay },
 ];
 
-export const tipoInfo   = (id) => TIPOS.find(t => t.id === id) || {};
+export const tipoInfo   = (id) => TIPOS.find(t => t.id === id) || (id === TIPO_PROJETO.id ? TIPO_PROJETO : {});
 export const statusInfo = (id) => STATUS.find(s => s.id === id) || {};
 export const ehTerminal = (s)  => s === "resolvido" || s === "cancelado";
 

@@ -1,7 +1,7 @@
 import React from "react";
 const { useState, useMemo } = React;
 import { C, SERIF, SH } from "../../constants.js";
-import { TIPOS, tipoInfo, ehTerminal, fmtData, hojeISO } from "./choreiconst.js";
+import { TIPOS, TIPO_PROJETO, ehProjeto, tipoInfo, ehTerminal, fmtData, hojeISO } from "./choreiconst.js";
 import { criarItem } from "./choreidb.js";
 import { ItemCard } from "./ItemCard.jsx";
 
@@ -13,6 +13,9 @@ export function EquipeDia({ equipe, itens, sessao, usuarios, recarregar }) {
   const [erro, setErro] = useState("");
   const [novo, setNovo] = useState({ tipo:"dificuldade", texto:"", responsavel:"", prazo:"" });
   const [salvando, setSalvando] = useState(false);
+  const [novoProj, setNovoProj] = useState({ texto:"", responsavel:"", prazo:"" });
+  const [salvandoProj, setSalvandoProj] = useState(false);
+  const [verConcluidos, setVerConcluidos] = useState(false);
 
   const eMaster = sessao?.role === "master";
   const eResponsavel = equipe?.responsavel_id === sessao?.id;
@@ -20,9 +23,20 @@ export function EquipeDia({ equipe, itens, sessao, usuarios, recarregar }) {
 
   const hoje = hojeISO();
 
+  // projetos/atividades de longa duração ficam fora do fluxo do dia
+  const itensDia = itens.filter(i => !ehProjeto(i));
+  const projetos = itens.filter(ehProjeto);
+  const projetosAbertos = projetos.filter(i => !ehTerminal(i.status))
+    .slice().sort((a,b) => {
+      const pa = a.prazo || "9999-99-99", pb = b.prazo || "9999-99-99";
+      if (pa !== pb) return pa < pb ? -1 : 1;
+      return (a.criado_em || "") < (b.criado_em || "") ? 1 : -1;
+    });
+  const projetosConcluidos = projetos.filter(i => ehTerminal(i.status));
+
   // separa por bloco
-  const criadosHoje = itens.filter(i => (i.criado_em || "").slice(0,10) === hoje);
-  const pendentesHerdados = itens.filter(i =>
+  const criadosHoje = itensDia.filter(i => (i.criado_em || "").slice(0,10) === hoje);
+  const pendentesHerdados = itensDia.filter(i =>
     (i.criado_em || "").slice(0,10) < hoje &&
     !ehTerminal(i.status)
   );
@@ -50,6 +64,31 @@ export function EquipeDia({ equipe, itens, sessao, usuarios, recarregar }) {
       await recarregar();
     } catch (err) { setErro(err.message || String(err)); }
     setSalvando(false);
+  };
+
+  const salvarProjeto = async () => {
+    setErro("");
+    if (!novoProj.texto.trim()) { setErro("Escreva o nome/descrição do projeto."); return; }
+    setSalvandoProj(true);
+    try {
+      const respUser = usuarios.find(u => u.id === novoProj.responsavel);
+      await criarItem(sessao.id, {
+        equipeId: equipe.id,
+        tipo: TIPO_PROJETO.id,
+        texto: novoProj.texto.trim(),
+        responsavelId: novoProj.responsavel || null,
+        responsavelNome: respUser?.nome || null,
+        prazo: novoProj.prazo || null,
+      });
+      setNovoProj({ texto:"", responsavel:"", prazo:"" });
+      await recarregar();
+    } catch (err) {
+      const m = err.message || String(err);
+      setErro(/tipo_check|tipo inválido/i.test(m)
+        ? "Seu banco ainda não aceita projetos — rode uma vez o sql/chorei_v2.sql no Supabase (SQL Editor) e tente de novo."
+        : m);
+    }
+    setSalvandoProj(false);
   };
 
   const Bloco = ({ titulo, sub, cor, itens: lista, vazio }) => (
@@ -171,6 +210,82 @@ export function EquipeDia({ equipe, itens, sessao, usuarios, recarregar }) {
           cor="#B07D10"
           itens={[...avisosHoje, ...ontemHoje]}
           vazio="Sem avisos." />
+      </div>
+
+      {/* Projetos e atividades de longa duração */}
+      <div style={{ background:C.card, border:"1px solid "+C.line, borderTop:"3px solid "+TIPO_PROJETO.cor,
+        borderRadius:12, padding:"14px 16px", marginTop:18, boxShadow:SH }}>
+        <div style={{ display:"flex", alignItems:"baseline", justifyContent:"space-between", gap:10, flexWrap:"wrap" }}>
+          <div>
+            <span style={{ fontFamily:SERIF, fontSize:16, color:C.brand, fontWeight:600 }}>
+              ◆ Projetos e atividades de longa duração
+            </span>
+            <span style={{ fontSize:11.5, color:C.muted, fontWeight:600, background:C.sage, borderRadius:20, padding:"1px 8px", marginLeft:8 }}>
+              {projetosAbertos.length}
+            </span>
+            <div style={{ fontSize:11.5, color:C.muted, marginTop:2 }}>
+              o que atravessa vários dias e não se resolve hoje — fica aqui até concluir
+            </div>
+          </div>
+          {projetosConcluidos.length > 0 && (
+            <button onClick={() => setVerConcluidos(v => !v)}
+              style={{ background:"transparent", color:C.muted, border:"1px solid "+C.line,
+                borderRadius:20, padding:"4px 12px", fontSize:11.5, fontWeight:600, cursor:"pointer" }}>
+              {verConcluidos ? "ocultar concluídos" : `ver concluídos (${projetosConcluidos.length})`}
+            </button>
+          )}
+        </div>
+
+        {/* Form de novo projeto */}
+        {podeEscrever && (
+          <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"end", marginTop:12,
+            padding:"10px 12px", background:C.paper, border:"1px dashed "+C.line, borderRadius:10 }}>
+            <div style={{ flex:"2 1 260px" }}>
+              <div style={lab}>Novo projeto / atividade</div>
+              <input value={novoProj.texto}
+                onChange={e => setNovoProj(n => ({ ...n, texto:e.target.value }))}
+                onKeyDown={e => { if (e.key === "Enter") salvarProjeto(); }}
+                placeholder="Ex.: reforma do galpão 2, implantar 5S no setor…" style={inp} />
+            </div>
+            <div style={{ flex:"1 1 160px" }}>
+              <div style={lab}>Dono (opcional)</div>
+              {usuarios.length > 0 ? (
+                <select value={novoProj.responsavel} onChange={e => setNovoProj(n => ({ ...n, responsavel:e.target.value }))} style={inp}>
+                  <option value="">— sem dono —</option>
+                  {usuarios.map(u => <option key={u.id} value={u.id}>{u.nome}</option>)}
+                </select>
+              ) : (
+                <input value={novoProj.responsavel} onChange={e => setNovoProj(n => ({ ...n, responsavel:e.target.value }))} placeholder="Nome do dono" style={inp} />
+              )}
+            </div>
+            <div style={{ flex:"0 0 140px" }}>
+              <div style={lab}>Prazo (opcional)</div>
+              <input type="date" value={novoProj.prazo} onChange={e => setNovoProj(n => ({ ...n, prazo:e.target.value }))} style={inp} />
+            </div>
+            <button onClick={salvarProjeto} disabled={salvandoProj}
+              style={{ background:TIPO_PROJETO.cor, color:"#fff", border:"none", borderRadius:8,
+                padding:"9px 18px", fontSize:13.5, fontWeight:600, cursor:salvandoProj?"default":"pointer" }}>
+              {salvandoProj ? "salvando…" : "+ Adicionar"}
+            </button>
+          </div>
+        )}
+
+        {/* Lista de projetos */}
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(280px, 1fr))", gap:10, marginTop:12 }}>
+          {projetosAbertos.length === 0 && !verConcluidos && (
+            <div style={{ fontSize:12.5, color:C.muted, fontStyle:"italic" }}>
+              Nenhum projeto em andamento. {podeEscrever ? "Adicione acima o que a equipe está tocando a médio/longo prazo." : ""}
+            </div>
+          )}
+          {projetosAbertos.map(i => (
+            <ItemCard key={i.id} item={i} sessao={sessao} usuarios={usuarios}
+              podeEscrever={podeEscrever} recarregar={recarregar} onErro={setErro} />
+          ))}
+          {verConcluidos && projetosConcluidos.map(i => (
+            <ItemCard key={i.id} item={i} sessao={sessao} usuarios={usuarios}
+              podeEscrever={podeEscrever} recarregar={recarregar} onErro={setErro} />
+          ))}
+        </div>
       </div>
     </>
   );

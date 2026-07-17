@@ -11,6 +11,7 @@ export function Pendencias({ equipes, itens, sessao, usuarios, recarregar }) {
   const [erro, setErro] = useState("");
   const [equipeFiltro, setEquipeFiltro] = useState("todas");
   const [donoFiltro, setDonoFiltro] = useState("todos");
+  const [tipoFiltro, setTipoFiltro] = useState("todos");
   const [status, setStatus] = useState("nao_terminais");
 
   const eMaster = sessao?.role === "master";
@@ -29,6 +30,8 @@ export function Pendencias({ equipes, itens, sessao, usuarios, recarregar }) {
       if (status === "nao_terminais" && ehTerminal(i.status)) return false;
       if (status !== "todos" && status !== "nao_terminais" && i.status !== status) return false;
       if (equipeFiltro !== "todas" && i.equipe_id !== equipeFiltro) return false;
+      if (tipoFiltro === "dia" && i.tipo === "projeto") return false;
+      if (tipoFiltro === "projeto" && i.tipo !== "projeto") return false;
       if (donoFiltro !== "todos") {
         if (donoFiltro === "sem_dono" && (i.responsavel_id || i.responsavel_nome)) return false;
         if (donoFiltro !== "sem_dono" && i.responsavel_id !== donoFiltro) return false;
@@ -46,7 +49,7 @@ export function Pendencias({ equipes, itens, sessao, usuarios, recarregar }) {
       _equipeNome: equipeNome(i.equipe_id),
       _equipeCor: equipeCor(i.equipe_id),
     }));
-  }, [itens, equipeFiltro, donoFiltro, status]);
+  }, [itens, equipeFiltro, donoFiltro, tipoFiltro, status]);
 
   const contagens = useMemo(() => {
     const atrasadas = itens.filter(i => !ehTerminal(i.status) && i.prazo && i.prazo < hojeISO()).length;
@@ -81,6 +84,12 @@ export function Pendencias({ equipes, itens, sessao, usuarios, recarregar }) {
         <select value={equipeFiltro} onChange={e => setEquipeFiltro(e.target.value)} style={sel}>
           <option value="todas">Todas</option>
           {equipes.filter(e => e.ativo).map(e => <option key={e.id} value={e.id}>{e.nome}</option>)}
+        </select>
+        <span style={{ fontSize:11, color:C.muted, fontWeight:600 }}>Tipo:</span>
+        <select value={tipoFiltro} onChange={e => setTipoFiltro(e.target.value)} style={sel}>
+          <option value="todos">Todos</option>
+          <option value="dia">Itens do dia</option>
+          <option value="projeto">Projetos / longa duração</option>
         </select>
         <span style={{ fontSize:11, color:C.muted, fontWeight:600 }}>Dono:</span>
         <select value={donoFiltro} onChange={e => setDonoFiltro(e.target.value)} style={sel}>

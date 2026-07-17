@@ -1,7 +1,8 @@
 -- =====================================================================
 -- Chōrei · Reuniões diárias
 -- Uma tabela de equipes (PCP/Almoxarifado/ADM) e uma tabela de itens
--- (dificuldades, planos, avisos, sobras do dia anterior).
+-- (dificuldades, planos, avisos, sobras do dia anterior e projetos de
+-- longa duração).
 -- Todo cliente lê direto (via anon), mas escrita/edição/exclusão passa por
 -- RPCs SECURITY DEFINER que validam se o usuário é master OU responsável
 -- daquela equipe.
@@ -24,7 +25,7 @@ create table if not exists public.chorei_equipes (
 create table if not exists public.chorei_itens (
   id               uuid primary key default gen_random_uuid(),
   equipe_id        uuid not null references public.chorei_equipes(id) on delete cascade,
-  tipo             text not null check (tipo in ('ontem','dificuldade','plano','aviso')),
+  tipo             text not null check (tipo in ('ontem','dificuldade','plano','aviso','projeto')),
   texto            text not null,
   autor_id         uuid references public.app_usuarios(id) on delete set null,
   autor_nome       text,
@@ -97,7 +98,7 @@ begin
   if not public.chorei_pode_escrever(p_user_id, p_equipe_id) then
     raise exception 'Você não é o responsável desta equipe';
   end if;
-  if p_tipo not in ('ontem','dificuldade','plano','aviso') then raise exception 'Tipo inválido'; end if;
+  if p_tipo not in ('ontem','dificuldade','plano','aviso','projeto') then raise exception 'Tipo inválido'; end if;
   if nullif(trim(coalesce(p_texto,'')),'') is null then raise exception 'Escreva o texto do item'; end if;
   select nome into v_autor from public.app_usuarios where id=p_user_id;
   insert into public.chorei_itens(equipe_id, tipo, texto, autor_id, autor_nome,
