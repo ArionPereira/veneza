@@ -36,6 +36,7 @@ const CSS = `
     main{padding-left:12px!important;padding-right:12px!important}
   }
   .pcm-os-print{display:none}
+  .exp-print{display:none}
   @media print{
     .no-print{display:none!important}
     body{background:#fff!important}
@@ -45,6 +46,10 @@ const CSS = `
     body.pcm-printing *{visibility:hidden}
     body.pcm-printing .pcm-os-print, body.pcm-printing .pcm-os-print *{visibility:visible}
     body.pcm-printing .pcm-os-print{display:block;position:absolute;left:0;top:0;width:100%;padding:0;color:#000}
+    /* Expedição: imprimir só o checklist da carga quando o body tem a classe exp-printing */
+    body.exp-printing *{visibility:hidden}
+    body.exp-printing .exp-print, body.exp-printing .exp-print *{visibility:visible}
+    body.exp-printing .exp-print{display:block;position:absolute;left:0;top:0;width:100%;padding:0;color:#000}
   }
 `;
 
