@@ -46,10 +46,12 @@ const CSS = `
     body.pcm-printing *{visibility:hidden}
     body.pcm-printing .pcm-os-print, body.pcm-printing .pcm-os-print *{visibility:visible}
     body.pcm-printing .pcm-os-print{display:block;position:absolute;left:0;top:0;width:100%;padding:0;color:#000}
-    /* Expedição: imprimir só o checklist da carga quando o body tem a classe exp-printing */
-    body.exp-printing *{visibility:hidden}
-    body.exp-printing .exp-print, body.exp-printing .exp-print *{visibility:visible}
-    body.exp-printing .exp-print{display:block;position:absolute;left:0;top:0;width:100%;padding:0;color:#000}
+    /* Expedição: imprimir só o checklist da carga quando o body tem a classe exp-printing.
+       O bloco .exp-print é filho direto do body (portal), então o resto some com
+       display:none e o checklist flui em quantas páginas precisar, sem cortes. */
+    body.exp-printing > *:not(.exp-print){display:none!important}
+    body.exp-printing .exp-print{display:block;width:100%;color:#000}
+    body.exp-printing .exp-print tr{page-break-inside:avoid}
   }
 `;
 
