@@ -4,7 +4,7 @@ const { useState } = React;
 import { C, SERIF } from "../../constants.js";
 import { sb } from "../../db.js";
 import { S, Campo, BtnMini } from "../operacionais/Common.jsx";
-import { SECOES, rotuloSecao, rotuloStatusCarga, corStatusCarga } from "./expedicaoconst.js";
+import { rotuloStatusCarga, corStatusCarga } from "./expedicaoconst.js";
 
 const BUCKET = "exp_fotos";
 async function uploadFotoExp(file) {
@@ -17,6 +17,7 @@ async function uploadFotoExp(file) {
 }
 
 const OPCOES = [["conforme","✓ Conforme"],["nao_conforme","✕ Não conforme"],["na","N.A."]];
+const corBtn = (status) => status==="nao_conforme" ? C.clay : status==="na" ? C.muted : C.green;
 
 function ItemRow({ resposta, onSalvar, bloqueadaLeitura }) {
   const [obs, setObs] = useState(resposta.observacao || "");
@@ -87,50 +88,75 @@ function ItemRow({ resposta, onSalvar, bloqueadaLeitura }) {
     </div>
   );
 }
-const corBtn = (status) => status==="nao_conforme" ? C.clay : status==="na" ? C.muted : C.green;
 
-function Secao({ secao, titulo, itens, responsavelNome, respondidoEm, onSalvarItem, onConcluir, jaFechada }) {
+function Secao({ cs, itens, aberta, onToggle, anteriorPendente, onSalvarItem, onConcluir }) {
   const [nome, setNome] = useState("");
   const [busy, setBusy] = useState(false);
   const [erro, setErro] = useState("");
-  const pendentes = itens.filter(i=>i.status==="pendente").length;
+  const jaFechada = !!cs.concluida_em;
+  const respondidos = itens.filter(i=>i.status!=="pendente").length;
+  const pendentes = itens.length - respondidos;
 
   const concluir = async () => {
     setErro("");
     if (!nome.trim()) { setErro("Informe seu nome para concluir a conferência."); return; }
     setBusy(true);
-    try { await onConcluir(secao, nome.trim()); }
+    try { await onConcluir(cs.id, nome.trim()); }
     catch (e) { setErro(e.message || String(e)); }
     setBusy(false);
   };
 
   return (
-    <div style={{ marginTop:22 }}>
-      <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:10, flexWrap:"wrap" }}>
-        <h3 style={{ fontFamily:SERIF, fontSize:16, color:C.brand, margin:0 }}>{titulo}</h3>
+    <div style={{ marginTop:14, border:"1px solid "+(jaFechada?C.green:C.line), borderRadius:12, overflow:"hidden" }}>
+      {/* Cabeçalho recolhível */}
+      <button onClick={onToggle} style={{ width:"100%", textAlign:"left", background:jaFechada?"#EFF7EE":C.sage, border:"none", padding:"12px 14px", cursor:"pointer", display:"flex", alignItems:"center", gap:10, flexWrap:"wrap" }}>
+        <span style={{ fontSize:14, color:C.muted, flex:"0 0 auto" }}>{aberta ? "▾" : "▸"}</span>
+        <span style={{ fontFamily:SERIF, fontSize:15.5, color:C.brand, fontWeight:600, flex:"1 1 auto" }}>{cs.nome}</span>
         {jaFechada
-          ? <span style={{ fontSize:12.5, color:C.green, fontWeight:600 }}>✓ Conferido por {responsavelNome} em {new Date(respondidoEm).toLocaleString("pt-BR")}</span>
-          : <span style={{ fontSize:12.5, color:C.muted }}>{pendentes>0 ? pendentes+" item(ns) pendente(s)" : "Todos os itens respondidos"}</span>}
-      </div>
-      <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-        {itens.map(r => <ItemRow key={r.id} resposta={r} onSalvar={onSalvarItem} bloqueadaLeitura={jaFechada} />)}
-        {!itens.length && <div style={{ fontSize:13, color:C.muted }}>Nenhum item cadastrado nesta seção.</div>}
-      </div>
-      {!jaFechada && (
-        <div style={{ ...S.card, marginTop:10, display:"flex", gap:10, flexWrap:"wrap", alignItems:"end" }}>
-          <Campo label="Responsável pela conferência"><input value={nome} onChange={e=>setNome(e.target.value)} style={S.input} /></Campo>
-          <button onClick={concluir} disabled={busy || pendentes>0} title={pendentes>0?"Responda todos os itens antes de concluir":undefined}
-            style={{ ...S.btn, opacity:(busy||pendentes>0)?0.6:1 }}>{busy?"salvando…":"Concluir seção"}</button>
-          {erro && <div style={{ fontSize:12.5, color:C.clay, width:"100%" }}>{erro}</div>}
+          ? <span style={{ fontSize:12, color:C.green, fontWeight:700 }}>✓ {cs.responsavel} · {new Date(cs.concluida_em).toLocaleString("pt-BR")}</span>
+          : anteriorPendente
+            ? <span style={{ fontSize:12, color:C.muted, fontWeight:600 }}>🔒 aguarda seção anterior</span>
+            : <span style={{ fontSize:12, color:pendentes>0?C.clay:C.green, fontWeight:600 }}>{respondidos}/{itens.length} respondidos</span>}
+      </button>
+
+      {aberta && (
+        <div style={{ padding:"12px 14px", display:"flex", flexDirection:"column", gap:10 }}>
+          {itens.map(r => <ItemRow key={r.id} resposta={r} onSalvar={onSalvarItem} bloqueadaLeitura={jaFechada} />)}
+          {!itens.length && <div style={{ fontSize:13, color:C.muted }}>Nenhum item nesta seção.</div>}
+          {!jaFechada && (
+            <div style={{ ...S.card, display:"flex", gap:10, flexWrap:"wrap", alignItems:"end" }}>
+              <Campo label="Responsável pela conferência"><input value={nome} onChange={e=>setNome(e.target.value)} style={S.input} /></Campo>
+              <button onClick={concluir} disabled={busy || pendentes>0 || anteriorPendente}
+                title={anteriorPendente ? "Conclua primeiro a seção anterior" : pendentes>0 ? "Responda todos os itens antes de concluir" : undefined}
+                style={{ ...S.btn, opacity:(busy||pendentes>0||anteriorPendente)?0.6:1 }}>{busy?"salvando…":"Concluir seção"}</button>
+              {anteriorPendente && <div style={{ fontSize:12.5, color:C.muted, width:"100%" }}>🔒 Esta seção só pode ser concluída depois da anterior. Os itens já podem ser respondidos.</div>}
+              {erro && <div style={{ fontSize:12.5, color:C.clay, width:"100%" }}>{erro}</div>}
+            </div>
+          )}
         </div>
       )}
     </div>
   );
 }
 
-export function CargaDetalhe({ carga, respostas, onSalvarItem, onConcluirSecao, onCancelar, onFechar }) {
-  const itensAntes = respostas.filter(r=>r.secao==="antes").sort((a,b)=>a.ordem-b.ordem);
-  const itensDepois = respostas.filter(r=>r.secao==="depois").sort((a,b)=>a.ordem-b.ordem);
+export function CargaDetalhe({ carga, cargaSecoes, respostas, onSalvarItem, onConcluirSecao, onCancelar, onFechar }) {
+  const secoes = cargaSecoes.slice().sort((a,b)=>a.ordem-b.ordem || new Date(a.criado_em)-new Date(b.criado_em));
+  // abre por padrão só a primeira seção ainda não concluída; o resto fica recolhido
+  const [abertas, setAbertas] = useState(() => {
+    const prox = secoes.find(s => !s.concluida_em);
+    return prox ? { [prox.id]: true } : {};
+  });
+  const toggle = (id) => setAbertas(a => ({ ...a, [id]: !a[id] }));
+  const itensDe = (cs) => respostas.filter(r => r.carga_secao_id === cs.id).sort((a,b)=>a.ordem-b.ordem);
+  const secaoPorId = Object.fromEntries(secoes.map(cs => [cs.id, cs]));
+
+  const concluirEAvancar = async (csId, responsavel) => {
+    await onConcluirSecao(csId, responsavel);
+    // recolhe a seção concluída e abre a próxima
+    const i = secoes.findIndex(s => s.id === csId);
+    const prox = secoes[i+1];
+    setAbertas(a => ({ ...a, [csId]: false, ...(prox ? { [prox.id]: true } : {}) }));
+  };
 
   const imprimir = () => {
     document.body.classList.add("exp-printing");
@@ -168,14 +194,15 @@ export function CargaDetalhe({ carga, respostas, onSalvarItem, onConcluirSecao, 
           Esta carga foi cancelada e não pode mais ser alterada.
         </div>
       ) : (
-        <>
-          <Secao secao="antes" titulo="Antes do carregamento" itens={itensAntes}
-            responsavelNome={carga.responsavel_antes} respondidoEm={carga.respondido_antes_em}
-            jaFechada={!!carga.respondido_antes_em} onSalvarItem={onSalvarItem} onConcluir={onConcluirSecao} />
-          <Secao secao="depois" titulo="Depois do carregamento" itens={itensDepois}
-            responsavelNome={carga.responsavel_depois} respondidoEm={carga.respondido_depois_em}
-            jaFechada={!!carga.respondido_depois_em} onSalvarItem={onSalvarItem} onConcluir={onConcluirSecao} />
-        </>
+        <div style={{ marginTop:8 }}>
+          {secoes.map((cs, i) => (
+            <Secao key={cs.id} cs={cs} itens={itensDe(cs)}
+              aberta={!!abertas[cs.id]} onToggle={()=>toggle(cs.id)}
+              anteriorPendente={secoes.slice(0,i).some(s=>!s.concluida_em)}
+              onSalvarItem={onSalvarItem} onConcluir={concluirEAvancar} />
+          ))}
+          {!secoes.length && <div style={{ fontSize:13, color:C.muted, marginTop:10 }}>Esta carga não tem seções (modelo estava vazio quando foi criada).</div>}
+        </div>
       )}
 
       <div style={{ display:"flex", gap:10, marginTop:20, flexWrap:"wrap", alignItems:"center" }}>
@@ -214,13 +241,11 @@ export function CargaDetalhe({ carga, respostas, onSalvarItem, onConcluirSecao, 
         </tbody></table>
 
         {/* Seções */}
-        {SECOES.map(([id,label]) => {
-          const itens = respostas.filter(r=>r.secao===id).sort((a,b)=>a.ordem-b.ordem);
-          const resp = id==="antes" ? carga.responsavel_antes : carga.responsavel_depois;
-          const quando = id==="antes" ? carga.respondido_antes_em : carga.respondido_depois_em;
+        {secoes.map(cs => {
+          const itens = itensDe(cs);
           return (
-            <div key={id} style={{ marginBottom:16 }}>
-              <div style={{ background:"#000", color:"#fff", fontSize:11.5, fontWeight:700, textTransform:"uppercase", letterSpacing:1, padding:"4px 8px" }}>{label}</div>
+            <div key={cs.id} style={{ marginBottom:16 }}>
+              <div style={{ background:"#000", color:"#fff", fontSize:11.5, fontWeight:700, textTransform:"uppercase", letterSpacing:1, padding:"4px 8px" }}>{cs.nome}</div>
               <table style={{ width:"100%", borderCollapse:"collapse", fontSize:11 }}>
                 <thead><tr>
                   <th style={{ border:"1px solid #000", padding:"3px 6px", width:24, textAlign:"center" }}>Nº</th>
@@ -243,8 +268,8 @@ export function CargaDetalhe({ carga, respostas, onSalvarItem, onConcluirSecao, 
                 </tbody>
               </table>
               <table style={{ width:"100%", borderCollapse:"collapse", fontSize:11, marginTop:-1 }}><tbody><tr>
-                <td style={{ border:"1px solid #000", padding:"4px 6px", width:"40%" }}><b>Conferido por:</b> {resp || ""}</td>
-                <td style={{ border:"1px solid #000", padding:"4px 6px", width:"28%" }}><b>Data/hora:</b> {quando ? new Date(quando).toLocaleString("pt-BR") : ""}</td>
+                <td style={{ border:"1px solid #000", padding:"4px 6px", width:"40%" }}><b>Conferido por:</b> {cs.responsavel || ""}</td>
+                <td style={{ border:"1px solid #000", padding:"4px 6px", width:"28%" }}><b>Data/hora:</b> {cs.concluida_em ? new Date(cs.concluida_em).toLocaleString("pt-BR") : ""}</td>
                 <td style={{ border:"1px solid #000", padding:"4px 6px" }}><b>Assinatura:</b></td>
               </tr></tbody></table>
             </div>
@@ -259,7 +284,7 @@ export function CargaDetalhe({ carga, respostas, onSalvarItem, onConcluirSecao, 
               {respostas.filter(r=>r.foto_url).map(r=>(
                 <div key={r.id} style={{ width:150 }}>
                   <img src={r.foto_url} alt={r.titulo} style={{ width:150, height:110, objectFit:"cover", border:"1px solid #000", display:"block" }} />
-                  <div style={{ fontSize:9, marginTop:2 }}>{rotuloSecao(r.secao)} · {r.titulo}</div>
+                  <div style={{ fontSize:9, marginTop:2 }}>{secaoPorId[r.carga_secao_id]?.nome || ""} · {r.titulo}</div>
                 </div>
               ))}
             </div>

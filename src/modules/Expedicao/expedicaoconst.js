@@ -1,8 +1,5 @@
 import { C } from "../../constants.js";
 
-export const SECOES = [["antes","Antes do carregamento"],["depois","Depois do carregamento"]];
-export const rotuloSecao = (s) => SECOES.find(x=>x[0]===s)?.[1] || s;
-
 export const STATUS_CARGA = {
   aberta:    { label:"Aberta",    cor:C.brand },
   bloqueada: { label:"Bloqueada", cor:C.clay },
