@@ -10,6 +10,7 @@ import { Abastecimento } from "./modules/operacionais/Abastecimento.jsx";
 import { Almoxarifado } from "./modules/operacionais/Almoxarifado.jsx";
 import { Chorei } from "./modules/Chorei/Chorei.jsx";
 import { Ponto } from "./modules/Ponto/Ponto.jsx";
+import { Expedicao } from "./modules/Expedicao/Expedicao.jsx";
 
 const RENDERIZADORES = {
   restaurante: props => <Restaurante {...props} />,
@@ -19,6 +20,7 @@ const RENDERIZADORES = {
   almoxarifado: props => <Almoxarifado {...props} />,
   chorei: props => <Chorei {...props} />,
   ponto: props => <Ponto {...props} />,
+  expedicao: props => <Expedicao {...props} />,
 };
 
 const carregarSessao = () => {
