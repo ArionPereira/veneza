@@ -1,6 +1,7 @@
 import React from "react";
 const { useState, useMemo } = React;
 import { C, SERIF, SH, brl } from "../../constants.js";
+import { ESTADOS, calcularFrete } from "./frete.js";
 
 // percentual aplicado sobre o subtotal dos produtos (negativo = desconto)
 const AJUSTE_FORMA_PAGAMENTO = { "Pix": -0.05, "Boleto": 0, "Cartão": 0.07 };
@@ -46,6 +47,7 @@ export function Carrinho({ itens, onAtualizarQtd, onRemover, onVoltar, onEnviar,
   const [telefone, setTelefone] = useState("");
   const [formaPagamento, setFormaPagamento] = useState(FORMAS_PAGAMENTO[0]);
   const [aviamento, setAviamento] = useState("");
+  const [estado, setEstado] = useState("");
   const [observacoes, setObservacoes] = useState("");
   const [erro, setErro] = useState("");
 
@@ -53,16 +55,19 @@ export function Carrinho({ itens, onAtualizarQtd, onRemover, onVoltar, onEnviar,
   const subtotalProdutos = itensComPreco.reduce((s, it) => s + it.precoUnit * it.quantidade, 0);
   const percentualPagamento = AJUSTE_FORMA_PAGAMENTO[formaPagamento] ?? 0;
   const ajustePagamento = subtotalProdutos * percentualPagamento;
-  const total = subtotalProdutos + ajustePagamento;
+  const frete = estado ? calcularFrete(estado, subtotalProdutos) : null;
+  const total = subtotalProdutos + ajustePagamento + (frete?.valor || 0);
 
   const confirmar = () => {
     if (!nome.trim()) { setErro("Informe seu nome."); return; }
     if (!itens.length) { setErro("O carrinho está vazio."); return; }
     if (!aviamento) { setErro("Escolha o aviamento (Azus ou Private Label)."); return; }
+    if (!estado) { setErro("Escolha o estado pra calcular o frete."); return; }
+    if (frete?.indisponivel) { setErro("Frete pra essa região ainda não está configurado — fala direto com a vendedora pelo WhatsApp pra fechar esse pedido."); return; }
     setErro("");
     onEnviar({
-      clienteNome: nome.trim(), clienteTelefone: telefone.trim(), formaPagamento, aviamento,
-      observacoes: observacoes.trim(), itensParaEnviar: itensComPreco, ajustePagamento, subtotalProdutos, total,
+      clienteNome: nome.trim(), clienteTelefone: telefone.trim(), formaPagamento, aviamento, estado,
+      observacoes: observacoes.trim(), itensParaEnviar: itensComPreco, ajustePagamento, frete: frete?.valor || 0, subtotalProdutos, total,
     });
   };
 
@@ -99,7 +104,7 @@ export function Carrinho({ itens, onAtualizarQtd, onRemover, onVoltar, onEnviar,
             <label style={lbl}>Aviamento *</label>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               {AVIAMENTO_OPCOES.map(op => (
-                <button key={op} onClick={() => setAviamento(op)} style={{
+                <button key={op} onClick={() => { setAviamento(op); setErro(""); }} style={{
                   border: "1px solid " + C.line, borderRadius: 9, padding: "9px 14px", fontSize: 13.5, fontWeight: 600, cursor: "pointer",
                   background: aviamento === op ? C.brand : C.card, color: aviamento === op ? "#fff" : C.ink,
                 }}>{op}</button>
@@ -128,6 +133,14 @@ export function Carrinho({ itens, onAtualizarQtd, onRemover, onVoltar, onEnviar,
                 {percentualPagamento < 0 ? "Desconto" : "Acréscimo"} {formaPagamento} ({Math.round(Math.abs(percentualPagamento) * 100)}%): {percentualPagamento < 0 ? "−" : "+"}{brl(Math.abs(ajustePagamento))}
               </div>
             )}
+            {frete && !frete.indisponivel && (
+              <div style={{ textAlign: "right", fontSize: 14, color: frete.gratis ? C.green : C.muted }}>
+                Frete ({frete.regiao}): {frete.gratis ? "Grátis 🎉" : brl(frete.valor)}
+              </div>
+            )}
+            {frete?.indisponivel && (
+              <div style={{ textAlign: "right", fontSize: 13, color: C.clay }}>⚠ Frete pra {frete.regiao} ainda não configurado</div>
+            )}
             <div style={{ textAlign: "right", fontSize: 18, fontWeight: 700, color: C.ink, marginTop: 4 }}>
               Total: {brl(total)}
             </div>
@@ -142,6 +155,13 @@ export function Carrinho({ itens, onAtualizarQtd, onRemover, onVoltar, onEnviar,
             <div style={{ marginBottom: 12 }}>
               <label style={lbl}>Telefone / WhatsApp</label>
               <input style={inp} value={telefone} onChange={e => setTelefone(e.target.value)} placeholder="(00) 00000-0000" />
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={lbl}>Estado (pra calcular o frete) *</label>
+              <select style={inp} value={estado} onChange={e => { setEstado(e.target.value); setErro(""); }}>
+                <option value="">Selecione…</option>
+                {ESTADOS.map(([uf, nome]) => <option key={uf} value={uf}>{nome}</option>)}
+              </select>
             </div>
             <div style={{ marginBottom: 12 }}>
               <label style={lbl}>Forma de pagamento</label>

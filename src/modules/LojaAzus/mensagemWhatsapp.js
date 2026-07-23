@@ -3,13 +3,14 @@ import { brl } from "../../constants.js";
 // Número da vendedora (Azus) que recebe os pré-pedidos pelo WhatsApp.
 export const NUMERO_WHATSAPP_VENDEDORA = "5545999663050";
 
-export function montarMensagem({ numero, clienteNome, clienteTelefone, formaPagamento, aviamento, observacoes, itens, subtotalProdutos, ajustePagamento, frete, total }) {
+export function montarMensagem({ numero, clienteNome, clienteTelefone, formaPagamento, aviamento, estado, observacoes, itens, subtotalProdutos, ajustePagamento, frete, total }) {
   const linhas = [];
   linhas.push("🛍️ *Novo pré-pedido — Loja Azus*");
   if (numero) linhas.push("Pedido #" + numero);
   linhas.push("");
   linhas.push("*Cliente:* " + clienteNome);
   if (clienteTelefone) linhas.push("*Telefone:* " + clienteTelefone);
+  if (estado) linhas.push("*Estado:* " + estado);
   linhas.push("");
   linhas.push("*Itens:*");
   itens.forEach((it, i) => {

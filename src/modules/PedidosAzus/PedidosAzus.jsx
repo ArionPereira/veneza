@@ -122,8 +122,10 @@ export function PedidosAzus({ sessao, onSair }) {
                 <div style={{ fontWeight: 700, color: C.ink, fontSize: 15 }}>#{p.numero} — {p.cliente_nome}</div>
                 <div style={{ fontSize: 12.5, color: C.muted }}>
                   {p.cliente_telefone && <>{p.cliente_telefone} · </>}
+                  {p.estado && <>{p.estado} · </>}
                   {p.forma_pagamento && <>{p.forma_pagamento} · </>}
                   {p.aviamento && <>aviamento: <b>{p.aviamento}</b> · </>}
+                  {!!p.frete && <>frete: <b>{brl(p.frete)}</b> · </>}
                   {new Date(p.criado_em).toLocaleString("pt-BR")}
                 </div>
               </div>

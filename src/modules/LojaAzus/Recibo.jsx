@@ -6,7 +6,7 @@ import { C, SERIF, brl } from "../../constants.js";
 // navegador entra em modo de impressão (ver <style> abaixo).
 export function Recibo({ pedido }) {
   if (!pedido) return null;
-  const { numero, clienteNome, clienteTelefone, formaPagamento, aviamento, observacoes, itens, subtotalProdutos, ajustePagamento, frete, total, data } = pedido;
+  const { numero, clienteNome, clienteTelefone, formaPagamento, aviamento, estado, observacoes, itens, subtotalProdutos, ajustePagamento, frete, total, data } = pedido;
 
   return (
     <div className="azus-recibo-print" style={{ display: "none" }}>
@@ -24,6 +24,7 @@ export function Recibo({ pedido }) {
       <table style={{ width: "100%", fontSize: 11, color: "#666", marginBottom: 16 }}><tbody>
         <tr><td style={{ padding: "2px 0", width: 110 }}>Cliente</td><td>{clienteNome}</td></tr>
         {clienteTelefone && <tr><td style={{ padding: "2px 0" }}>Telefone</td><td>{clienteTelefone}</td></tr>}
+        {estado && <tr><td style={{ padding: "2px 0" }}>Estado</td><td>{estado}</td></tr>}
         <tr><td style={{ padding: "2px 0" }}>Forma de pagamento</td><td>{formaPagamento}</td></tr>
         <tr><td style={{ padding: "2px 0" }}>Aviamento</td><td>{aviamento}</td></tr>
         {observacoes && <tr><td style={{ padding: "2px 0" }}>Observações</td><td>{observacoes}</td></tr>}

@@ -67,23 +67,23 @@ export function LojaAzus() {
 
   // itensParaEnviar já vem com o acréscimo do Private Label aplicado
   // (calculado em Carrinho.jsx) quando for o caso.
-  const enviarPedido = async ({ clienteNome, clienteTelefone, formaPagamento, aviamento, observacoes, itensParaEnviar, ajustePagamento, subtotalProdutos, total }) => {
+  const enviarPedido = async ({ clienteNome, clienteTelefone, formaPagamento, aviamento, estado, observacoes, itensParaEnviar, ajustePagamento, frete, subtotalProdutos, total }) => {
     setEnviando(true);
     try {
       const resultado = await criarPedido({
         clienteNome, clienteTelefone, formaPagamento, aviamento, observacoes,
-        itens: itensParaEnviar, ajustePagamento, frete: 0,
+        itens: itensParaEnviar, ajustePagamento, frete, estado,
       });
       const mensagem = montarMensagem({
         numero: resultado.numero,
-        clienteNome, clienteTelefone, formaPagamento, aviamento, observacoes,
-        itens: itensParaEnviar, subtotalProdutos, ajustePagamento, frete: 0, total: resultado.total,
+        clienteNome, clienteTelefone, formaPagamento, aviamento, estado, observacoes,
+        itens: itensParaEnviar, subtotalProdutos, ajustePagamento, frete, total: resultado.total,
       });
       abrirWhatsapp(mensagem);
       setPedidoFeito(resultado);
       setUltimoPedidoCompleto({
-        numero: resultado.numero, clienteNome, clienteTelefone, formaPagamento, aviamento, observacoes,
-        itens: itensParaEnviar, subtotalProdutos, ajustePagamento, frete: 0, total: resultado.total,
+        numero: resultado.numero, clienteNome, clienteTelefone, formaPagamento, aviamento, estado, observacoes,
+        itens: itensParaEnviar, subtotalProdutos, ajustePagamento, frete, total: resultado.total,
         data: new Date().toLocaleString("pt-BR"),
       });
       setCarrinho([]);
