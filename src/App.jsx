@@ -11,6 +11,8 @@ import { Almoxarifado } from "./modules/operacionais/Almoxarifado.jsx";
 import { Chorei } from "./modules/Chorei/Chorei.jsx";
 import { Ponto } from "./modules/Ponto/Ponto.jsx";
 import { Expedicao } from "./modules/Expedicao/Expedicao.jsx";
+import { LojaAzus } from "./modules/LojaAzus/LojaAzus.jsx";
+import { PedidosAzus } from "./modules/PedidosAzus/PedidosAzus.jsx";
 
 const RENDERIZADORES = {
   restaurante: props => <Restaurante {...props} />,
@@ -21,6 +23,7 @@ const RENDERIZADORES = {
   chorei: props => <Chorei {...props} />,
   ponto: props => <Ponto {...props} />,
   expedicao: props => <Expedicao {...props} />,
+  "pedidos-azus": props => <PedidosAzus {...props} />,
 };
 
 const carregarSessao = () => {
@@ -35,6 +38,12 @@ export function App() {
   const entrar = (u) => { localStorage.setItem("veneza_sessao", JSON.stringify(u)); setSessao(u); };
   const sair = () => { localStorage.removeItem("veneza_sessao"); setSessao(null); setModulo(null); };
   const voltarAoHub = () => setModulo(null);
+
+  // Vitrine pública da Loja Azus: rota por hash, sem passar pelo login do
+  // Hub (é a única tela do app pensada para visitantes de fora da equipe).
+  if (typeof window !== "undefined" && window.location.hash.startsWith("#loja-azus")) {
+    return <LojaAzus />;
+  }
 
   if (!sessao) return <Login onEntrar={entrar} />;
 

@@ -1,0 +1,27 @@
+name: Loja Azus - sincroniza catálogo
+
+on:
+  schedule:
+    - cron: "0 9 * * *" # 09:00 UTC = 06:00 em Brasília
+  workflow_dispatch: # também dá pra disparar manualmente pela aba Actions
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Chamar a Edge Function azus-sync-catalogo
+        env:
+          AZUS_SYNC_KEY: ${{ secrets.AZUS_SYNC_KEY }}
+        run: |
+          set -e
+          resp=$(curl -sS -w "\n%{http_code}" -X POST \
+            "https://undvgacxhmawifcfpknv.supabase.co/functions/v1/azus-sync-catalogo" \
+            -H "Content-Type: application/json" \
+            -d "{\"chave_cron\":\"${AZUS_SYNC_KEY}\"}")
+          body=$(echo "$resp" | sed '$d')
+          code=$(echo "$resp" | tail -n1)
+          echo "$body"
+          if [ "$code" -ge 300 ]; then
+            echo "Sincronização falhou com HTTP $code"
+            exit 1
+          fi
