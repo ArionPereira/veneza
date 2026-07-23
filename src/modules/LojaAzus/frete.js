@@ -1,7 +1,6 @@
 // Tabela de frete da Azus (por região). "Frete grátis acima de" é sobre
 // o subtotal dos produtos (antes do ajuste por forma de pagamento).
-// Norte ainda não tem valor definido pela Azus — calcularFrete() retorna
-// indisponivel:true nesse caso, e o carrinho bloqueia a finalização.
+// Norte usa a mesma taxa do Nordeste (confirmado pela Azus).
 
 export const ESTADOS = [
   ["AC", "Acre"], ["AL", "Alagoas"], ["AP", "Amapá"], ["AM", "Amazonas"], ["BA", "Bahia"],
@@ -21,9 +20,8 @@ const REGIAO_POR_ESTADO = {
   PR: "Sul", RS: "Sul", SC: "Sul",
 };
 
-// null = Azus ainda não passou o valor pra essa região
 export const REGRAS_FRETE = {
-  "Norte": null,
+  "Norte": { gratisAcima: 6000, taxa: 230 }, // mesma regra do Nordeste
   "Nordeste": { gratisAcima: 6000, taxa: 230 },
   "Centro-Oeste": { gratisAcima: 6000, taxa: 200 },
   "Sudeste": { gratisAcima: 5000, taxa: 180 },

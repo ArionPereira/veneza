@@ -1,12 +1,15 @@
 import React from "react";
 import { C, SERIF, brl } from "../../constants.js";
+import { agruparPorProduto } from "./agruparPedido.js";
+import { PRAZO_BOLETO } from "./mensagemWhatsapp.js";
 
 // Recibo pensado pra impressão/"salvar como PDF" (Ctrl+P / compartilhar
 // no celular) — fica invisível na tela normal e só aparece quando o
 // navegador entra em modo de impressão (ver <style> abaixo).
 export function Recibo({ pedido }) {
   if (!pedido) return null;
-  const { numero, clienteNome, clienteTelefone, formaPagamento, aviamento, estado, observacoes, itens, subtotalProdutos, ajustePagamento, frete, total, data } = pedido;
+  const { numero, clienteNome, clienteTelefone, formaPagamento, aviamento, estado, observacoes, itens, subtotalProdutos, acrescimoAviamento, ajustePagamento, frete, total, data } = pedido;
+  const grupos = agruparPorProduto(itens);
 
   return (
     <div className="azus-recibo-print" style={{ display: "none" }}>
@@ -25,38 +28,26 @@ export function Recibo({ pedido }) {
         <tr><td style={{ padding: "2px 0", width: 110 }}>Cliente</td><td>{clienteNome}</td></tr>
         {clienteTelefone && <tr><td style={{ padding: "2px 0" }}>Telefone</td><td>{clienteTelefone}</td></tr>}
         {estado && <tr><td style={{ padding: "2px 0" }}>Estado</td><td>{estado}</td></tr>}
-        <tr><td style={{ padding: "2px 0" }}>Forma de pagamento</td><td>{formaPagamento}</td></tr>
+        <tr><td style={{ padding: "2px 0" }}>Forma de pagamento</td><td>{formaPagamento}{formaPagamento === "Boleto" ? " — " + PRAZO_BOLETO : ""}</td></tr>
         <tr><td style={{ padding: "2px 0" }}>Aviamento</td><td>{aviamento}</td></tr>
         {observacoes && <tr><td style={{ padding: "2px 0" }}>Observações</td><td>{observacoes}</td></tr>}
       </tbody></table>
 
-      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-        <thead>
-          <tr style={{ borderBottom: "1px solid #ccc", textAlign: "left" }}>
-            <th style={{ padding: "4px 0" }}>Item</th>
-            <th style={{ padding: "4px 0" }}>Cor</th>
-            <th style={{ padding: "4px 0" }}>Tam.</th>
-            <th style={{ padding: "4px 0", textAlign: "right" }}>Qtd</th>
-            <th style={{ padding: "4px 0", textAlign: "right" }}>Preço un.</th>
-            <th style={{ padding: "4px 0", textAlign: "right" }}>Subtotal</th>
-          </tr>
-        </thead>
-        <tbody>
-          {itens.map((it, i) => (
-            <tr key={i} style={{ borderBottom: "1px solid #eee" }}>
-              <td style={{ padding: "4px 0" }}>{it.produtoNome}</td>
-              <td style={{ padding: "4px 0" }}>{it.corCodigo} {it.corNome}</td>
-              <td style={{ padding: "4px 0" }}>{it.tamanho || "—"}</td>
-              <td style={{ padding: "4px 0", textAlign: "right" }}>{it.quantidade}</td>
-              <td style={{ padding: "4px 0", textAlign: "right" }}>{brl(it.precoUnit)}</td>
-              <td style={{ padding: "4px 0", textAlign: "right" }}>{brl(it.precoUnit * it.quantidade)}</td>
-            </tr>
+      {grupos.map((g, gi) => (
+        <div key={gi} style={{ marginBottom: 12 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: C.brand, borderBottom: "1px solid #ccc", padding: "4px 0" }}>{g.produtoNome}</div>
+          {g.cores.map((c, ci) => (
+            <div key={ci} style={{ fontSize: 12, padding: "3px 0" }}>
+              <b>{c.corNome}:</b> {c.linhas.map(l => "tam. " + l.tamanho + " (" + l.quantidade + " un.)").join(", ")}
+            </div>
           ))}
-        </tbody>
-      </table>
+          <div style={{ fontSize: 12, textAlign: "right", color: "#444" }}>Subtotal: {brl(g.subtotal)} ({g.totalPecas} peça(s))</div>
+        </div>
+      ))}
 
       <div style={{ marginTop: 14, textAlign: "right", fontSize: 12, color: "#444" }}>
-        <div>Subtotal produtos: {brl(subtotalProdutos)}</div>
+        <div>Valor dos produtos: {brl(subtotalProdutos)}</div>
+        {!!acrescimoAviamento && <div>Acréscimo aviamento ({aviamento}): +{brl(acrescimoAviamento)}</div>}
         {!!ajustePagamento && <div>{ajustePagamento < 0 ? "Desconto" : "Acréscimo"} {formaPagamento}: {ajustePagamento < 0 ? "−" : "+"}{brl(Math.abs(ajustePagamento))}</div>}
         {!!frete && <div>Frete: {brl(frete)}</div>}
         <div style={{ fontSize: 16, fontWeight: 700, color: C.ink, marginTop: 4 }}>Total: {brl(total)}</div>

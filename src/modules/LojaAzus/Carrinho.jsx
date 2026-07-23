@@ -2,13 +2,15 @@ import React from "react";
 const { useState, useMemo } = React;
 import { C, SERIF, SH, brl } from "../../constants.js";
 import { ESTADOS, calcularFrete } from "./frete.js";
+import { PRAZO_BOLETO } from "./mensagemWhatsapp.js";
 
-// percentual aplicado sobre o subtotal dos produtos (negativo = desconto)
+// percentual aplicado sobre o valor dos produtos (negativo = desconto)
 const AJUSTE_FORMA_PAGAMENTO = { "Pix": -0.05, "Boleto": 0, "Cartão": 0.07 };
 const FORMAS_PAGAMENTO = Object.keys(AJUSTE_FORMA_PAGAMENTO);
 const AVIAMENTO_OPCOES = ["Azus", "Private Label"];
 const MINIMO_PRIVATE_LABEL = 10;
 const ACRESCIMO_PRIVATE_LABEL = 3;
+const PEDIDO_MINIMO = 2000; // líquido — não conta o frete
 
 const inp = { width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid " + C.line, fontSize: 14.5, background: C.paper, color: C.ink };
 const lbl = { fontSize: 12, fontWeight: 700, color: C.brand, marginBottom: 6, display: "block" };
@@ -52,22 +54,34 @@ export function Carrinho({ itens, onAtualizarQtd, onRemover, onVoltar, onEnviar,
   const [erro, setErro] = useState("");
 
   const { itens: itensComPreco, avisos } = useMemo(() => aplicarAviamento(itens, aviamento), [itens, aviamento]);
-  const subtotalProdutos = itensComPreco.reduce((s, it) => s + it.precoUnit * it.quantidade, 0);
+
+  // Valor dos produtos "puro" (preço de tabela, sem acréscimo de aviamento).
+  const subtotalProdutos = itens.reduce((s, it) => s + it.precoUnit * it.quantidade, 0);
+  // O que o Private Label acrescentou, isolado (pra discriminar no resumo).
+  const acrescimoAviamento = itensComPreco.reduce((s, it, i) => s + (it.precoUnit - itens[i].precoUnit) * it.quantidade, 0);
+  const baseParaPagamento = subtotalProdutos + acrescimoAviamento;
+
   const percentualPagamento = AJUSTE_FORMA_PAGAMENTO[formaPagamento] ?? 0;
-  const ajustePagamento = subtotalProdutos * percentualPagamento;
-  const frete = estado ? calcularFrete(estado, subtotalProdutos) : null;
-  const total = subtotalProdutos + ajustePagamento + (frete?.valor || 0);
+  const ajustePagamento = baseParaPagamento * percentualPagamento;
+  // Líquido dos produtos (sem frete) — é sobre isso que vale o pedido mínimo.
+  const totalLiquidoProdutos = baseParaPagamento + ajustePagamento;
+  const faltaParaMinimo = PEDIDO_MINIMO - totalLiquidoProdutos;
+
+  const frete = estado ? calcularFrete(estado, baseParaPagamento) : null;
+  const total = totalLiquidoProdutos + (frete?.valor || 0);
 
   const confirmar = () => {
     if (!nome.trim()) { setErro("Informe seu nome."); return; }
     if (!itens.length) { setErro("O carrinho está vazio."); return; }
     if (!aviamento) { setErro("Escolha o aviamento (Azus ou Private Label)."); return; }
+    if (faltaParaMinimo > 0) { setErro("Pedido mínimo de " + brl(PEDIDO_MINIMO) + " — adicione mais produtos."); return; }
     if (!estado) { setErro("Escolha o estado pra calcular o frete."); return; }
     if (frete?.indisponivel) { setErro("Frete pra essa região ainda não está configurado — fala direto com a vendedora pelo WhatsApp pra fechar esse pedido."); return; }
     setErro("");
     onEnviar({
       clienteNome: nome.trim(), clienteTelefone: telefone.trim(), formaPagamento, aviamento, estado,
-      observacoes: observacoes.trim(), itensParaEnviar: itensComPreco, ajustePagamento, frete: frete?.valor || 0, subtotalProdutos, total,
+      observacoes: observacoes.trim(), itensParaEnviar: itensComPreco,
+      subtotalProdutos, acrescimoAviamento, ajustePagamento, frete: frete?.valor || 0, total,
     });
   };
 
@@ -83,7 +97,7 @@ export function Carrinho({ itens, onAtualizarQtd, onRemover, onVoltar, onEnviar,
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontWeight: 700, color: C.ink, fontSize: 14.5 }}>{it.produtoNome}</div>
             <div style={{ fontSize: 12.5, color: C.muted }}>
-              {it.corNome && <>Cor {it.corCodigo} {it.corNome} · </>}
+              {it.corNome && <>Cor {it.corNome} · </>}
               {it.tamanho && <>Tam. {it.tamanho} · </>}
               {brl(it.precoUnit)} un.
             </div>
@@ -126,8 +140,25 @@ export function Carrinho({ itens, onAtualizarQtd, onRemover, onVoltar, onEnviar,
             </div>
           )}
 
+          {faltaParaMinimo > 0 && (
+            <div style={{ background: "#FBEAE3", border: "1px solid " + C.clay, color: C.clay, borderRadius: 8, padding: "10px 12px", fontSize: 13, marginBottom: 16, fontWeight: 600 }}>
+              ⚠ Pedido mínimo de {brl(PEDIDO_MINIMO)} (sem contar o frete). Faltam {brl(faltaParaMinimo)} — adicione mais produtos pra fechar o pedido.
+            </div>
+          )}
+
+          {formaPagamento === "Boleto" && (
+            <div style={{ background: C.sage, color: C.ink, borderRadius: 8, padding: "9px 12px", fontSize: 12.5, marginBottom: 16 }}>
+              ℹ️ {PRAZO_BOLETO}
+            </div>
+          )}
+
           <div style={{ marginBottom: 22 }}>
-            <div style={{ textAlign: "right", fontSize: 14, color: C.muted }}>Subtotal produtos: {brl(subtotalProdutos)}</div>
+            <div style={{ textAlign: "right", fontSize: 14, color: C.muted }}>Valor dos produtos: {brl(subtotalProdutos)}</div>
+            {!!acrescimoAviamento && (
+              <div style={{ textAlign: "right", fontSize: 14, color: C.clay }}>
+                Acréscimo aviamento ({aviamento}): +{brl(acrescimoAviamento)}
+              </div>
+            )}
             {percentualPagamento !== 0 && (
               <div style={{ textAlign: "right", fontSize: 14, color: percentualPagamento < 0 ? C.green : C.clay }}>
                 {percentualPagamento < 0 ? "Desconto" : "Acréscimo"} {formaPagamento} ({Math.round(Math.abs(percentualPagamento) * 100)}%): {percentualPagamento < 0 ? "−" : "+"}{brl(Math.abs(ajustePagamento))}
@@ -160,7 +191,7 @@ export function Carrinho({ itens, onAtualizarQtd, onRemover, onVoltar, onEnviar,
               <label style={lbl}>Estado (pra calcular o frete) *</label>
               <select style={inp} value={estado} onChange={e => { setEstado(e.target.value); setErro(""); }}>
                 <option value="">Selecione…</option>
-                {ESTADOS.map(([uf, nome]) => <option key={uf} value={uf}>{nome}</option>)}
+                {ESTADOS.map(([uf, nomeEstado]) => <option key={uf} value={uf}>{nomeEstado}</option>)}
               </select>
             </div>
             <div style={{ marginBottom: 12 }}>
@@ -176,12 +207,12 @@ export function Carrinho({ itens, onAtualizarQtd, onRemover, onVoltar, onEnviar,
 
             {erro && <div style={{ color: C.clay, fontSize: 13, marginBottom: 12 }}>{erro}</div>}
 
-            <button onClick={confirmar} disabled={enviando} style={{
+            <button onClick={confirmar} disabled={enviando || faltaParaMinimo > 0} style={{
               width: "100%", background: "#25D366", color: "#fff", border: "none", borderRadius: 10, padding: "13px",
-              fontSize: 15, fontWeight: 700, cursor: enviando ? "default" : "pointer", opacity: enviando ? 0.7 : 1,
+              fontSize: 15, fontWeight: 700, cursor: (enviando || faltaParaMinimo > 0) ? "default" : "pointer", opacity: (enviando || faltaParaMinimo > 0) ? 0.6 : 1,
               display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
             }}>
-              {enviando ? "Enviando..." : "Finalizar e enviar no WhatsApp"}
+              {enviando ? "Enviando..." : faltaParaMinimo > 0 ? "Abaixo do pedido mínimo" : "Finalizar e enviar no WhatsApp"}
             </button>
           </div>
         </>

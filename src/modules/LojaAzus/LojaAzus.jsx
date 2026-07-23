@@ -67,7 +67,7 @@ export function LojaAzus() {
 
   // itensParaEnviar já vem com o acréscimo do Private Label aplicado
   // (calculado em Carrinho.jsx) quando for o caso.
-  const enviarPedido = async ({ clienteNome, clienteTelefone, formaPagamento, aviamento, estado, observacoes, itensParaEnviar, ajustePagamento, frete, subtotalProdutos, total }) => {
+  const enviarPedido = async ({ clienteNome, clienteTelefone, formaPagamento, aviamento, estado, observacoes, itensParaEnviar, subtotalProdutos, acrescimoAviamento, ajustePagamento, frete, total }) => {
     setEnviando(true);
     try {
       const resultado = await criarPedido({
@@ -77,13 +77,13 @@ export function LojaAzus() {
       const mensagem = montarMensagem({
         numero: resultado.numero,
         clienteNome, clienteTelefone, formaPagamento, aviamento, estado, observacoes,
-        itens: itensParaEnviar, subtotalProdutos, ajustePagamento, frete, total: resultado.total,
+        itens: itensParaEnviar, subtotalProdutos, acrescimoAviamento, ajustePagamento, frete, total: resultado.total,
       });
       abrirWhatsapp(mensagem);
       setPedidoFeito(resultado);
       setUltimoPedidoCompleto({
         numero: resultado.numero, clienteNome, clienteTelefone, formaPagamento, aviamento, estado, observacoes,
-        itens: itensParaEnviar, subtotalProdutos, ajustePagamento, frete, total: resultado.total,
+        itens: itensParaEnviar, subtotalProdutos, acrescimoAviamento, ajustePagamento, frete, total: resultado.total,
         data: new Date().toLocaleString("pt-BR"),
       });
       setCarrinho([]);

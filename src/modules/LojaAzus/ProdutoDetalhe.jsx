@@ -1,18 +1,10 @@
 import React from "react";
-const { useState, useMemo } = React;
+const { useState } = React;
 import { C, SERIF, SH, brl } from "../../constants.js";
 
-// Uma coluna de tamanho por número par entre o menor e o maior tamanho
-// entre TODAS as cores do produto (cada cor habilita só a faixa dela).
-function tamanhosDoProduto(cores) {
-  const comFaixa = cores.filter(c => c.tamanho_min != null && c.tamanho_max != null);
-  if (!comFaixa.length) return [];
-  const min = Math.min(...comFaixa.map(c => c.tamanho_min));
-  const max = Math.max(...comFaixa.map(c => c.tamanho_max));
-  const out = [];
-  for (let t = min; t <= max; t += 2) out.push(t);
-  return out;
-}
+// A Azus produz todos os modelos do 38 ao 52, mesmo quando o catálogo
+// original só lista uma faixa menor pra uma cor específica.
+const TAMANHOS = [38, 40, 42, 44, 46, 48, 50, 52];
 
 // "imediato" (em qualquer grafia) é entrega normal; qualquer outra coisa
 // (data, mês, "sob consulta"...) é produção programada — destaca a linha.
@@ -27,16 +19,13 @@ export function ProdutoDetalhe({ produto, onVoltar, onAdicionarVarios }) {
   const [qtds, setQtds] = useState({}); // { [corId]: { [tamanho]: quantidade } }
   const [aviso, setAviso] = useState("");
 
-  const tamanhos = useMemo(() => tamanhosDoProduto(produto.cores), [produto.cores]);
-  const semFaixaDeTamanho = produto.cores.filter(c => c.tamanho_min == null || c.tamanho_max == null);
-
   const precoUnit = produto.preco_varejo != null
     ? produto.preco_varejo
     : (produto.preco_atacado && produto.preco_atacado[0] ? produto.preco_atacado[0].preco : 0);
 
-  const setQtd = (corId, tamanhoChave, valor) => {
+  const setQtd = (corId, tamanho, valor) => {
     const n = Math.max(0, parseInt(valor, 10) || 0);
-    setQtds(q => ({ ...q, [corId]: { ...(q[corId] || {}), [tamanhoChave]: n } }));
+    setQtds(q => ({ ...q, [corId]: { ...(q[corId] || {}), [tamanho]: n } }));
   };
 
   const totalLinha = (corId) => Object.values(qtds[corId] || {}).reduce((s, n) => s + n, 0);
@@ -47,14 +36,14 @@ export function ProdutoDetalhe({ produto, onVoltar, onAdicionarVarios }) {
     const itens = [];
     for (const cor of produto.cores) {
       const linha = qtds[cor.id] || {};
-      for (const [tamanhoChave, quantidade] of Object.entries(linha)) {
+      for (const [tamanho, quantidade] of Object.entries(linha)) {
         if (quantidade > 0) {
           itens.push({
             produtoId: produto.id,
             produtoNome: produto.nome,
             corCodigo: cor.codigo,
             corNome: cor.nome,
-            tamanho: tamanhoChave === "unico" ? null : parseInt(tamanhoChave, 10),
+            tamanho: parseInt(tamanho, 10),
             quantidade,
             precoUnit,
           });
@@ -93,7 +82,7 @@ export function ProdutoDetalhe({ produto, onVoltar, onAdicionarVarios }) {
         </div>
       )}
 
-      {tamanhos.length > 0 && (
+      {produto.cores.length > 0 && (
         <div style={{ marginTop: 22 }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: C.brand, marginBottom: 8 }}>Escolha as cores e quantidades</div>
           <div style={{ fontSize: 11.5, color: C.muted, marginBottom: 8 }}>
@@ -104,34 +93,29 @@ export function ProdutoDetalhe({ produto, onVoltar, onAdicionarVarios }) {
               <thead>
                 <tr style={{ background: C.sage }}>
                   <th style={{ textAlign: "left", padding: "8px 10px", position: "sticky", left: 0, background: C.sage, whiteSpace: "nowrap" }}>Cor</th>
-                  {tamanhos.map(t => <th key={t} style={{ padding: "8px 6px", fontWeight: 700, color: C.brand }}>{t}</th>)}
+                  {TAMANHOS.map(t => <th key={t} style={{ padding: "8px 6px", fontWeight: 700, color: C.brand }}>{t}</th>)}
                   <th style={{ padding: "8px 10px", fontWeight: 700, color: C.brand }}>Total</th>
                 </tr>
               </thead>
               <tbody>
-                {produto.cores.filter(c => c.tamanho_min != null && c.tamanho_max != null).map(cor => {
+                {produto.cores.map(cor => {
                   const programada = producaoProgramada(cor);
                   return (
                     <tr key={cor.id} style={{ borderTop: "1px solid " + C.line, background: programada ? "#FBEFC9" : "transparent" }}>
                       <td style={{ padding: "6px 10px", whiteSpace: "nowrap", position: "sticky", left: 0, background: programada ? "#FBEFC9" : C.card }}>
-                        {cor.codigo} - {cor.nome}
+                        {cor.nome}
                         {(cor.entrega || cor.observacao) && (
                           <div style={{ fontSize: 10.5, color: programada ? "#8A6D00" : C.muted, fontWeight: programada ? 700 : 400 }}>
                             {programada && "📅 "}{cor.entrega}{cor.observacao ? (cor.entrega ? " · " : "") + cor.observacao : ""}
                           </div>
                         )}
                       </td>
-                      {tamanhos.map(t => {
-                        const habilitado = t >= cor.tamanho_min && t <= cor.tamanho_max;
-                        return (
-                          <td key={t} style={{ padding: "4px 4px", textAlign: "center" }}>
-                            {habilitado
-                              ? <input type="number" min="0" inputMode="numeric" value={qtds[cor.id]?.[t] || ""} placeholder="0"
-                                  onChange={e => setQtd(cor.id, t, e.target.value)} style={inputCel} />
-                              : <span style={{ color: C.line }}>—</span>}
-                          </td>
-                        );
-                      })}
+                      {TAMANHOS.map(t => (
+                        <td key={t} style={{ padding: "4px 4px", textAlign: "center" }}>
+                          <input type="number" min="0" inputMode="numeric" value={qtds[cor.id]?.[t] || ""} placeholder="0"
+                            onChange={e => setQtd(cor.id, t, e.target.value)} style={inputCel} />
+                        </td>
+                      ))}
                       <td style={{ padding: "4px 10px", textAlign: "center", fontWeight: 700 }}>{totalLinha(cor.id) || ""}</td>
                     </tr>
                   );
@@ -142,30 +126,11 @@ export function ProdutoDetalhe({ produto, onVoltar, onAdicionarVarios }) {
         </div>
       )}
 
-      {semFaixaDeTamanho.length > 0 && (
-        <div style={{ marginTop: 16 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: C.brand, marginBottom: 8 }}>Outras cores (tamanho sob consulta)</div>
-          {semFaixaDeTamanho.map(cor => {
-            const programada = producaoProgramada(cor);
-            return (
-              <div key={cor.id} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6, background: programada ? "#FBEFC9" : "transparent", borderRadius: 8, padding: programada ? "6px 8px" : 0 }}>
-                <div style={{ flex: 1, fontSize: 13 }}>
-                  {cor.codigo} - {cor.nome}
-                  {(cor.entrega || cor.observacao) && <span style={{ color: programada ? "#8A6D00" : C.muted, fontWeight: programada ? 700 : 400 }}> ({programada && "📅 "}{[cor.entrega, cor.observacao].filter(Boolean).join(" · ")})</span>}
-                </div>
-                <input type="number" min="0" inputMode="numeric" value={qtds[cor.id]?.["unico"] || ""} placeholder="0"
-                  onChange={e => setQtd(cor.id, "unico", e.target.value)} style={inputCel} />
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {tamanhos.length === 0 && semFaixaDeTamanho.length === 0 && (
+      {produto.cores.length === 0 && (
         <div style={{ marginTop: 20, color: C.muted, fontSize: 13 }}>Sem cores cadastradas pra esse modelo no momento.</div>
       )}
 
-      {(tamanhos.length > 0 || semFaixaDeTamanho.length > 0) && (
+      {produto.cores.length > 0 && (
         <div style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
           <div style={{ fontSize: 14 }}>
             <b>{totalPecas}</b> peça(s) · <b>{brl(totalValor)}</b>

@@ -1,9 +1,12 @@
 import { brl } from "../../constants.js";
+import { agruparPorProduto } from "./agruparPedido.js";
 
 // Número da vendedora (Azus) que recebe os pré-pedidos pelo WhatsApp.
 export const NUMERO_WHATSAPP_VENDEDORA = "5545999663050";
 
-export function montarMensagem({ numero, clienteNome, clienteTelefone, formaPagamento, aviamento, estado, observacoes, itens, subtotalProdutos, ajustePagamento, frete, total }) {
+export const PRAZO_BOLETO = "Boleto em 30, 60, 90 e 120 dias a partir da data do faturamento.";
+
+export function montarMensagem({ numero, clienteNome, clienteTelefone, formaPagamento, aviamento, estado, observacoes, itens, subtotalProdutos, acrescimoAviamento, ajustePagamento, frete, total }) {
   const linhas = [];
   linhas.push("🛍️ *Novo pré-pedido — Loja Azus*");
   if (numero) linhas.push("Pedido #" + numero);
@@ -12,21 +15,29 @@ export function montarMensagem({ numero, clienteNome, clienteTelefone, formaPaga
   if (clienteTelefone) linhas.push("*Telefone:* " + clienteTelefone);
   if (estado) linhas.push("*Estado:* " + estado);
   linhas.push("");
+
   linhas.push("*Itens:*");
-  itens.forEach((it, i) => {
-    const partes = [it.produtoNome];
-    if (it.corNome) partes.push("cor " + (it.corCodigo ? it.corCodigo + " " : "") + it.corNome);
-    if (it.tamanho) partes.push("tam. " + it.tamanho);
-    partes.push(it.quantidade + " un.");
-    partes.push(brl(it.precoUnit) + " = " + brl(it.precoUnit * it.quantidade));
-    linhas.push((i + 1) + ". " + partes.join(" — "));
+  const grupos = agruparPorProduto(itens);
+  grupos.forEach(g => {
+    linhas.push("");
+    linhas.push("*" + g.produtoNome.toUpperCase() + "*");
+    g.cores.forEach(c => {
+      const partes = c.linhas.map(l => "tam. " + l.tamanho + " (" + l.quantidade + " un.)");
+      linhas.push(c.corNome + ": " + partes.join(", "));
+    });
+    linhas.push("Subtotal: " + brl(g.subtotal) + " (" + g.totalPecas + " peça(s))");
   });
+
   linhas.push("");
-  if (subtotalProdutos != null) linhas.push("Subtotal produtos: " + brl(subtotalProdutos));
+  linhas.push("*Resumo:*");
+  linhas.push("Valor dos produtos: " + brl(subtotalProdutos));
+  if (acrescimoAviamento) linhas.push("Acréscimo aviamento (" + aviamento + "): +" + brl(acrescimoAviamento));
   if (ajustePagamento) linhas.push((ajustePagamento < 0 ? "Desconto" : "Acréscimo") + " " + formaPagamento + ": " + (ajustePagamento < 0 ? "−" : "+") + brl(Math.abs(ajustePagamento)));
   if (frete) linhas.push("Frete: " + brl(frete));
   linhas.push("*Total:* " + brl(total));
+  linhas.push("");
   if (formaPagamento) linhas.push("*Forma de pagamento:* " + formaPagamento);
+  if (formaPagamento === "Boleto") linhas.push(PRAZO_BOLETO);
   if (aviamento) linhas.push("*Aviamento:* " + aviamento);
   if (observacoes) { linhas.push(""); linhas.push("*Observações:* " + observacoes); }
   return linhas.join("\n");
