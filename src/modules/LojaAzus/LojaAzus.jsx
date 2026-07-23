@@ -1,6 +1,7 @@
 import React from "react";
 const { useState, useEffect } = React;
-import { C, SERIF, SH } from "../../constants.js";
+import { SERIF, SH } from "../../constants.js";
+import { AZ as C, logoAzus } from "./azusTheme.js";
 import { listarProdutos, criarPedido } from "./lojaazusdb.js";
 import { montarMensagem, abrirWhatsapp } from "./mensagemWhatsapp.js";
 import { Catalogo } from "./Catalogo.jsx";
@@ -16,15 +17,24 @@ function carregarCarrinho() {
 }
 
 function CabecalhoLoja({ qtdCarrinho, onCarrinho, onLogo }) {
+  const logo = logoAzus();
   return (
-    <header style={{ background: "rgba(255,255,255,.92)", backdropFilter: "saturate(180%) blur(8px)", borderBottom: "1px solid " + C.line, boxShadow: SH, position: "sticky", top: 0, zIndex: 20 }}>
-      <div style={{ maxWidth: 960, margin: "0 auto", padding: "12px 18px", display: "flex", alignItems: "center", gap: 12 }}>
-        <div onClick={onLogo} style={{ cursor: "pointer" }}>
-          <div style={{ fontSize: 10, letterSpacing: 2, textTransform: "uppercase", color: C.accent, fontWeight: 700 }}>Alfaiataria Azus</div>
-          <h1 style={{ fontFamily: SERIF, fontSize: 19, margin: "1px 0 0", fontWeight: 700, color: C.brand }}>Loja de calças</h1>
+    <header style={{ background: C.brand, borderBottom: "3px solid " + C.accent, boxShadow: SH, position: "sticky", top: 0, zIndex: 20 }}>
+      <div style={{ maxWidth: 980, margin: "0 auto", padding: "12px 18px", display: "flex", alignItems: "center", gap: 12 }}>
+        <div onClick={onLogo} style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: 10 }}>
+          {logo
+            ? <img src={logo} alt="Azus Menswear" style={{ height: 34 }} />
+            : (
+              <div style={{ lineHeight: 1 }}>
+                <div style={{ fontFamily: SERIF, fontSize: 21, fontWeight: 800, color: "#fff", letterSpacing: .5 }}>AZUS</div>
+                <div style={{ fontSize: 9, letterSpacing: 3, textTransform: "uppercase", color: C.accent, fontWeight: 700, marginTop: 1 }}>Menswear</div>
+              </div>
+            )}
+          <div style={{ width: 1, alignSelf: "stretch", background: "rgba(255,255,255,.25)" }} />
+          <h1 style={{ fontFamily: SERIF, fontSize: 15, margin: 0, fontWeight: 600, color: "rgba(255,255,255,.85)" }}>Loja de calças</h1>
         </div>
         <button onClick={onCarrinho} style={{
-          marginLeft: "auto", background: C.brand, color: "#fff", border: "none", borderRadius: 9,
+          marginLeft: "auto", background: C.accent, color: "#fff", border: "none", borderRadius: 9,
           padding: "9px 14px", fontSize: 13.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 7,
         }}>
           🛒 Carrinho{qtdCarrinho > 0 && <span style={{ background: "#fff", color: C.brand, borderRadius: 999, padding: "1px 7px", fontSize: 12 }}>{qtdCarrinho}</span>}

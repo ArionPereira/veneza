@@ -1,6 +1,7 @@
 import React from "react";
 const { useState } = React;
-import { C, SERIF, SH, brl } from "../../constants.js";
+import { SERIF, SH, brl } from "../../constants.js";
+import { AZ as C } from "./azusTheme.js";
 
 // A Azus produz todos os modelos do 38 ao 52, mesmo quando o catálogo
 // original só lista uma faixa menor pra uma cor específica.

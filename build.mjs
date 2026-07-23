@@ -71,6 +71,16 @@ let bundle = result.outputFiles[0].text.replaceAll("</script>", "<\\/script>");
 // 2) logo embutido (base64)
 const logo = "data:image/png;base64," + readFileSync("public/logo_b64.txt", "utf8").trim();
 
+// 2b) marca Azus (logotipo + foto da vendedora) — opcional: só embute se o
+// arquivo existir (public/azus_logo_b64.txt / public/azus_amanda_b64.txt),
+// pra não quebrar o build antes desses arquivos serem gerados.
+function lerBase64Opcional(caminho) {
+  try { return "data:image/png;base64," + readFileSync(caminho, "utf8").trim(); }
+  catch { return ""; }
+}
+const azusLogo = lerBase64Opcional("public/azus_logo_b64.txt");
+const azusAmanda = lerBase64Opcional("public/azus_amanda_b64.txt");
+
 // 3) monta o index.html
 const html = `<!doctype html>
 <html lang="pt-BR">
@@ -97,6 +107,8 @@ const html = `<!doctype html>
   window.SUPABASE_ANON = "${CONFIG.SUPABASE_ANON}";
   window.CHAVE = "${CONFIG.CHAVE}";
   window.LOGO = "${logo}";
+  window.AZUS_LOGO = "${azusLogo}";
+  window.AZUS_AMANDA_FOTO = "${azusAmanda}";
   window.AI_PRICE_URL = "${CONFIG.AI_PRICE_URL}";
   window.AI_MENU_URL = "${CONFIG.AI_MENU_URL}";
 </script>
@@ -111,7 +123,7 @@ ${bundle}
 mkdirSync("dist", { recursive: true });
 writeFileSync("dist/index.html", html);
 for (const f of readdirSync("public")) {
-  if (f === "logo_b64.txt") continue;
+  if (f === "logo_b64.txt" || f === "azus_logo_b64.txt" || f === "azus_amanda_b64.txt") continue;
   copyFileSync("public/" + f, "dist/" + f);
 }
 console.log("OK -> dist/index.html (" + Math.round(html.length / 1024) + " KB) + assets");

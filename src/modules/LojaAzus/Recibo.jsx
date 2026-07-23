@@ -1,5 +1,6 @@
 import React from "react";
-import { C, SERIF, brl } from "../../constants.js";
+import { SERIF, brl } from "../../constants.js";
+import { AZ as C } from "./azusTheme.js";
 import { agruparPorProduto } from "./agruparPedido.js";
 import { PRAZO_BOLETO } from "./mensagemWhatsapp.js";
 

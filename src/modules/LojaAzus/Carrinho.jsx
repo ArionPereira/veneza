@@ -1,6 +1,7 @@
 import React from "react";
 const { useState, useMemo } = React;
-import { C, SERIF, SH, brl } from "../../constants.js";
+import { SERIF, SH, brl } from "../../constants.js";
+import { AZ as C } from "./azusTheme.js";
 import { ESTADOS, calcularFrete } from "./frete.js";
 import { PRAZO_BOLETO } from "./mensagemWhatsapp.js";
 
