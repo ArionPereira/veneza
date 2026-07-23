@@ -11,28 +11,21 @@ function precoExibido(produto) {
 }
 
 function CardProduto({ produto, onAbrir }) {
-  const foto = produto.fotos[0];
   return (
     <button onClick={() => onAbrir(produto.slug)} style={{
       textAlign: "left", background: C.card, border: "1px solid " + C.line, borderRadius: 14,
-      overflow: "hidden", cursor: "pointer", boxShadow: SH, display: "flex", flexDirection: "column",
+      cursor: "pointer", boxShadow: SH, padding: "16px 16px 15px", display: "flex", flexDirection: "column", gap: 6,
     }}>
-      <div style={{ aspectRatio: "3/4", background: C.sage, overflow: "hidden" }}>
-        {foto
-          ? <img src={foto.url} alt={produto.nome} style={{ width: "100%", height: "100%", objectFit: "cover" }} loading="lazy" />
-          : <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: C.muted, fontSize: 13 }}>sem foto</div>}
-      </div>
-      <div style={{ padding: "12px 14px 14px" }}>
-        <h3 style={{ fontFamily: SERIF, fontSize: 16.5, margin: 0, color: C.brand, fontWeight: 600 }}>{produto.nome}</h3>
-        <div style={{ marginTop: 4, fontSize: 14, fontWeight: 700, color: C.ink }}>{precoExibido(produto)}</div>
-      </div>
+      {produto.codigo && <div style={{ fontSize: 11, color: C.muted, fontWeight: 600 }}>Cód. {produto.codigo}</div>}
+      <h3 style={{ fontFamily: SERIF, fontSize: 17, margin: 0, color: C.brand, fontWeight: 600 }}>{produto.nome}</h3>
+      <div style={{ fontSize: 14, fontWeight: 700, color: C.ink }}>{precoExibido(produto)}</div>
     </button>
   );
 }
 
 export function Catalogo({ produtos, onAbrirProduto }) {
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 14 }}>
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 14 }}>
       {produtos.map(p => <CardProduto key={p.id} produto={p} onAbrir={onAbrirProduto} />)}
     </div>
   );

@@ -2,7 +2,9 @@ import React from "react";
 const { useState, useMemo } = React;
 import { C, SERIF, SH, brl } from "../../constants.js";
 
-const FORMAS_PAGAMENTO = ["Pix", "Boleto", "Cartão"];
+// percentual aplicado sobre o subtotal dos produtos (negativo = desconto)
+const AJUSTE_FORMA_PAGAMENTO = { "Pix": -0.05, "Boleto": 0, "Cartão": 0.07 };
+const FORMAS_PAGAMENTO = Object.keys(AJUSTE_FORMA_PAGAMENTO);
 const AVIAMENTO_OPCOES = ["Azus", "Private Label"];
 const MINIMO_PRIVATE_LABEL = 10;
 const ACRESCIMO_PRIVATE_LABEL = 3;
@@ -48,7 +50,10 @@ export function Carrinho({ itens, onAtualizarQtd, onRemover, onVoltar, onEnviar,
   const [erro, setErro] = useState("");
 
   const { itens: itensComPreco, avisos } = useMemo(() => aplicarAviamento(itens, aviamento), [itens, aviamento]);
-  const total = itensComPreco.reduce((s, it) => s + it.precoUnit * it.quantidade, 0);
+  const subtotalProdutos = itensComPreco.reduce((s, it) => s + it.precoUnit * it.quantidade, 0);
+  const percentualPagamento = AJUSTE_FORMA_PAGAMENTO[formaPagamento] ?? 0;
+  const ajustePagamento = subtotalProdutos * percentualPagamento;
+  const total = subtotalProdutos + ajustePagamento;
 
   const confirmar = () => {
     if (!nome.trim()) { setErro("Informe seu nome."); return; }
@@ -57,7 +62,7 @@ export function Carrinho({ itens, onAtualizarQtd, onRemover, onVoltar, onEnviar,
     setErro("");
     onEnviar({
       clienteNome: nome.trim(), clienteTelefone: telefone.trim(), formaPagamento, aviamento,
-      observacoes: observacoes.trim(), itensParaEnviar: itensComPreco,
+      observacoes: observacoes.trim(), itensParaEnviar: itensComPreco, ajustePagamento, subtotalProdutos, total,
     });
   };
 
@@ -116,8 +121,16 @@ export function Carrinho({ itens, onAtualizarQtd, onRemover, onVoltar, onEnviar,
             </div>
           )}
 
-          <div style={{ textAlign: "right", fontSize: 18, fontWeight: 700, color: C.ink, margin: "14px 0 22px" }}>
-            Total: {brl(total)}
+          <div style={{ marginBottom: 22 }}>
+            <div style={{ textAlign: "right", fontSize: 14, color: C.muted }}>Subtotal produtos: {brl(subtotalProdutos)}</div>
+            {percentualPagamento !== 0 && (
+              <div style={{ textAlign: "right", fontSize: 14, color: percentualPagamento < 0 ? C.green : C.clay }}>
+                {percentualPagamento < 0 ? "Desconto" : "Acréscimo"} {formaPagamento} ({Math.round(Math.abs(percentualPagamento) * 100)}%): {percentualPagamento < 0 ? "−" : "+"}{brl(Math.abs(ajustePagamento))}
+              </div>
+            )}
+            <div style={{ textAlign: "right", fontSize: 18, fontWeight: 700, color: C.ink, marginTop: 4 }}>
+              Total: {brl(total)}
+            </div>
           </div>
 
           <div style={{ background: C.card, border: "1px solid " + C.line, borderRadius: 14, padding: 18, boxShadow: SH }}>
@@ -133,7 +146,7 @@ export function Carrinho({ itens, onAtualizarQtd, onRemover, onVoltar, onEnviar,
             <div style={{ marginBottom: 12 }}>
               <label style={lbl}>Forma de pagamento</label>
               <select style={inp} value={formaPagamento} onChange={e => setFormaPagamento(e.target.value)}>
-                {FORMAS_PAGAMENTO.map(f => <option key={f} value={f}>{f}</option>)}
+                {FORMAS_PAGAMENTO.map(f => <option key={f} value={f}>{f}{AJUSTE_FORMA_PAGAMENTO[f] ? " (" + (AJUSTE_FORMA_PAGAMENTO[f] < 0 ? "-" : "+") + Math.round(Math.abs(AJUSTE_FORMA_PAGAMENTO[f]) * 100) + "%)" : ""}</option>)}
               </select>
             </div>
             <div style={{ marginBottom: 16 }}>

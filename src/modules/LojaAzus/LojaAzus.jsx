@@ -6,6 +6,7 @@ import { montarMensagem, abrirWhatsapp } from "./mensagemWhatsapp.js";
 import { Catalogo } from "./Catalogo.jsx";
 import { ProdutoDetalhe } from "./ProdutoDetalhe.jsx";
 import { Carrinho } from "./Carrinho.jsx";
+import { Recibo } from "./Recibo.jsx";
 
 const CHAVE_CARRINHO = "azus_carrinho";
 
@@ -42,6 +43,7 @@ export function LojaAzus() {
   const [carrinho, setCarrinho] = useState(carregarCarrinho);
   const [enviando, setEnviando] = useState(false);
   const [pedidoFeito, setPedidoFeito] = useState(null);
+  const [ultimoPedidoCompleto, setUltimoPedidoCompleto] = useState(null);
 
   useEffect(() => { document.title = "Loja Azus"; }, []);
 
@@ -65,17 +67,25 @@ export function LojaAzus() {
 
   // itensParaEnviar já vem com o acréscimo do Private Label aplicado
   // (calculado em Carrinho.jsx) quando for o caso.
-  const enviarPedido = async ({ clienteNome, clienteTelefone, formaPagamento, aviamento, observacoes, itensParaEnviar }) => {
+  const enviarPedido = async ({ clienteNome, clienteTelefone, formaPagamento, aviamento, observacoes, itensParaEnviar, ajustePagamento, subtotalProdutos, total }) => {
     setEnviando(true);
     try {
-      const resultado = await criarPedido({ clienteNome, clienteTelefone, formaPagamento, aviamento, observacoes, itens: itensParaEnviar });
+      const resultado = await criarPedido({
+        clienteNome, clienteTelefone, formaPagamento, aviamento, observacoes,
+        itens: itensParaEnviar, ajustePagamento, frete: 0,
+      });
       const mensagem = montarMensagem({
         numero: resultado.numero,
         clienteNome, clienteTelefone, formaPagamento, aviamento, observacoes,
-        itens: itensParaEnviar, total: resultado.total,
+        itens: itensParaEnviar, subtotalProdutos, ajustePagamento, frete: 0, total: resultado.total,
       });
       abrirWhatsapp(mensagem);
       setPedidoFeito(resultado);
+      setUltimoPedidoCompleto({
+        numero: resultado.numero, clienteNome, clienteTelefone, formaPagamento, aviamento, observacoes,
+        itens: itensParaEnviar, subtotalProdutos, ajustePagamento, frete: 0, total: resultado.total,
+        data: new Date().toLocaleString("pt-BR"),
+      });
       setCarrinho([]);
       setView("sucesso");
     } catch (e) {
@@ -116,12 +126,18 @@ export function LojaAzus() {
               Abrimos o WhatsApp com o resumo do seu pedido — é só confirmar o envio por lá.
               A vendedora vai entrar em contato para fechar os detalhes.
             </p>
-            <button onClick={() => setView("catalogo")} style={{ background: C.brand, color: "#fff", border: "none", borderRadius: 9, padding: "11px 20px", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
-              Voltar ao catálogo
-            </button>
+            <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
+              <button onClick={() => window.print()} style={{ background: C.sage, color: C.brand, border: "1px solid " + C.line, borderRadius: 9, padding: "11px 20px", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
+                🖨️ Baixar recibo (PDF)
+              </button>
+              <button onClick={() => setView("catalogo")} style={{ background: C.brand, color: "#fff", border: "none", borderRadius: 9, padding: "11px 20px", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
+                Voltar ao catálogo
+              </button>
+            </div>
           </div>
         )}
       </main>
+      <Recibo pedido={ultimoPedidoCompleto} />
     </div>
   );
 }
