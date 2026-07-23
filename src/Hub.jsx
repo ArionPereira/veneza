@@ -11,6 +11,7 @@ export const MODULOS = [
   { id:"chorei", nome:"Chōrei · Reuniões diárias", icone:"🗣️", descricao:"Reunião curta de 15 min por equipe (PCP, Almoxarifado, ADM): dificuldades, plano do dia, pendências com dono e prazo.", ativo:true },
   { id:"ponto", nome:"Ponto · Apuração", icone:"⏱️", descricao:"Sobe o Excel do ponto e apura jornada: horas extras, débito, marcações faltando, intra/interjornada e tolerância CLT.", ativo:true },
   { id:"expedicao", nome:"Check List Expedição", icone:"🚚", descricao:"Checklist de conferência antes e depois do carregamento: caminhão, lona, carroceria e itens críticos de despacho.", ativo:true },
+  { id:"pedidos-azus", nome:"Pedidos Azus", icone:"👖", descricao:"Pré-pedidos da vitrine pública de calças Azus: acompanhar, filtrar por status e marcar como lançado no sistema.", ativo:true },
 ];
 
 function Card({mod,liberado,onSelect}) {
