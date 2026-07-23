@@ -33,7 +33,12 @@ const CORS = {
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...CORS, "Content-Type": "application/json" } });
 
-const CATALOGO_URL = "https://catalogosazus.my.canva.site/alfaiatariasazus3/";
+// A Azus publica 3 catálogos Canva separados, cada um com seu próprio site.
+const CATALOGOS = [
+  { url: "https://catalogosazus.my.canva.site/alfaiatariasazus3/", linha: "Alfaiataria" },
+  { url: "https://catalogosazus.my.canva.site/bermudas-malhas-e-linhos-2026-3/", linha: "Bermudas, Malhas e Linhos" },
+  { url: "https://catalogosazus.my.canva.site/sarjas-e-tech-2026-3/", linha: "Sarjas e Tech" },
+];
 
 // ---------------------------------------------------------------------
 // Extrai o JSON interno (window['bootstrap'] = JSON.parse('...')) do HTML
@@ -130,7 +135,7 @@ function parseCores(raw: string) {
 
 const PRECO_RE = /[Rr]\$\s*[\d.,]+/;
 
-function extrairProdutosDoCatalogo(bootstrap: any) {
+function extrairProdutosDoCatalogo(bootstrap: any, linha: string) {
   const paginas = bootstrap?.page?.A?.A;
   if (!Array.isArray(paginas)) throw new Error("Formato inesperado: page.A.A não é uma lista de páginas.");
 
@@ -145,11 +150,11 @@ function extrairProdutosDoCatalogo(bootstrap: any) {
     if (!nome) return;
 
     const descricaoStr = strings
-      .filter(s => s.trim().length > 80 && !s.toLowerCase().startsWith("cores/") && !s.toLowerCase().startsWith("composiç"))
+      .filter(s => s.trim().length > 80 && !limpar(s).toLowerCase().startsWith("cores/") && !limpar(s).toLowerCase().startsWith("composiç"))
       .sort((a, b) => b.length - a.length)[0];
     const descricao = descricaoStr ? limpar(descricaoStr) : null;
 
-    const composicaoStr = strings.find(s => s.toLowerCase().startsWith("composiç"));
+    const composicaoStr = strings.find(s => limpar(s).toLowerCase().startsWith("composiç"));
     const composicao = composicaoStr ? limpar(composicaoStr).replace(/composiç[aã]o:\s*/i, "").trim() : null;
 
     const precoAtacadoStr = strings.find(s => /compra livre/i.test(s));
@@ -173,11 +178,12 @@ function extrairProdutosDoCatalogo(bootstrap: any) {
 
     const producaoLimitadaStr = strings.find(s => /produ[çc][aã]o limitada/i.test(s));
 
-    const coresRaw = strings.filter(s => s.toLowerCase().startsWith("cores/"));
+    const coresRaw = strings.filter(s => limpar(s).toLowerCase().startsWith("cores/"));
     const cores = coresRaw.flatMap(parseCores);
 
     produtos.push({
       nome,
+      linha,
       descricao,
       composicao,
       preco_varejo: precoVarejo,
@@ -191,32 +197,55 @@ function extrairProdutosDoCatalogo(bootstrap: any) {
 }
 
 // ---------------------------------------------------------------------
-async function sincronizar(admin: ReturnType<typeof createClient>, origem: string) {
-  const resp = await fetch(CATALOGO_URL, { headers: { "User-Agent": "Mozilla/5.0 (compatible; AzusCatalogSync/1.0)" } });
-  if (!resp.ok) throw new Error("Catálogo Canva respondeu HTTP " + resp.status);
-  const html = await resp.text();
-  const bootstrap = extrairBootstrap(html);
-  const produtosVivos = extrairProdutosDoCatalogo(bootstrap);
-  if (produtosVivos.length === 0) throw new Error("Nenhum produto encontrado no catálogo — abortando pra não zerar a loja por engano.");
+async function buscarProdutosVivos(): Promise<any[]> {
+  const todos: any[] = [];
+  for (const cat of CATALOGOS) {
+    const resp = await fetch(cat.url, { headers: { "User-Agent": "Mozilla/5.0 (compatible; AzusCatalogSync/1.0)" } });
+    if (!resp.ok) throw new Error("Catálogo Canva (" + cat.linha + ") respondeu HTTP " + resp.status);
+    const html = await resp.text();
+    const bootstrap = extrairBootstrap(html);
+    const produtos = extrairProdutosDoCatalogo(bootstrap, cat.linha);
+    if (produtos.length === 0) throw new Error("Nenhum produto encontrado no catálogo " + cat.linha + " — abortando pra não zerar a loja por engano.");
+    todos.push(...produtos);
+  }
+  return todos;
+}
 
-  const { data: existentes, error: errExist } = await admin.from("azus_produtos").select("id, slug, nome, preco_varejo, ativo");
+async function sincronizar(admin: ReturnType<typeof createClient>, origem: string) {
+  const produtosVivos = await buscarProdutosVivos();
+
+  const { data: existentes, error: errExist } = await admin.from("azus_produtos").select("id, slug, nome, linha, preco_varejo, ativo");
   if (errExist) throw errExist;
 
-  // Casa pelo nome (não pelo slug): o rótulo curto da página Canva
-  // (ex.: "LISBOA") pode ser mais curto que o nome cadastrado (ex.:
-  // "Gurkha Lisboa") — ver mesmoProduto(). Cada produto existente só
-  // pode ser usado uma vez por rodada.
+  // Casa pelo nome dentro da MESMA linha (não pelo slug): o rótulo curto
+  // da página Canva (ex.: "LISBOA") pode ser mais curto que o nome
+  // cadastrado (ex.: "Gurkha Lisboa") — ver mesmoProduto(). Escopar por
+  // linha evita confundir produtos de catálogos diferentes que reusam o
+  // mesmo nome (ex.: "Tóquio" existe em Bermudas e em Sarjas). Cada
+  // produto existente só pode ser usado uma vez por rodada.
   const restantes = new Set(existentes || []);
-  const acharExistente = (nome: string) => {
-    for (const e of restantes) if (mesmoProduto(e.nome, nome)) return e;
+  const acharExistente = (nome: string, linha: string) => {
+    for (const e of restantes) if (e.linha === linha && mesmoProduto(e.nome, nome)) return e;
     return null;
   };
+
+  // Slugs já em uso (banco + os que forem sendo criados nesta rodada),
+  // pra nunca colidir — inclusive quando o mesmo nome aparece 2x na
+  // mesma linha (ex.: as duas calças "Munique").
+  const slugsUsados = new Set((existentes || []).map(e => e.slug));
+  function gerarSlugLivre(nome: string): string {
+    const base = slugify(nome);
+    let slug = base, n = 1;
+    while (slugsUsados.has(slug)) { n++; slug = base + "-" + n; }
+    slugsUsados.add(slug);
+    return slug;
+  }
 
   const novos: string[] = [];
   const precosAlterados: { nome: string; antes: number | null; depois: number | null }[] = [];
 
   for (const p of produtosVivos) {
-    const existente = acharExistente(p.nome);
+    const existente = acharExistente(p.nome, p.linha);
     if (existente) {
       restantes.delete(existente);
       if ((existente.preco_varejo ?? null) !== (p.preco_varejo ?? null)) {
@@ -235,9 +264,9 @@ async function sincronizar(admin: ReturnType<typeof createClient>, origem: strin
         if (errCores) throw errCores;
       }
     } else {
-      novos.push(p.nome);
+      novos.push(p.nome + " (" + p.linha + ")");
       const { data: inserido, error } = await admin.from("azus_produtos").insert({
-        slug: slugify(p.nome), nome: p.nome, descricao: p.descricao, composicao: p.composicao,
+        slug: gerarSlugLivre(p.nome), nome: p.nome, linha: p.linha, descricao: p.descricao, composicao: p.composicao,
         preco_varejo: p.preco_varejo, preco_atacado: p.preco_atacado, producao_limitada: p.producao_limitada,
         ordem: p.ordem, ativo: true,
       }).select().single();
@@ -254,7 +283,7 @@ async function sincronizar(admin: ReturnType<typeof createClient>, origem: strin
   const desativados: string[] = [];
   for (const existente of restantes) {
     if (existente.ativo) {
-      desativados.push(existente.nome);
+      desativados.push(existente.nome + " (" + existente.linha + ")");
       const { error } = await admin.from("azus_produtos").update({ ativo: false }).eq("id", existente.id);
       if (error) throw error;
     }

@@ -8,12 +8,13 @@ async function ok(promise) {
   return data;
 }
 
-// Catálogo: produtos ativos, com fotos e cores já aninhadas.
+// Catálogo: produtos ativos, com fotos e cores já aninhadas, agrupados
+// por linha (Alfaiataria / Bermudas, Malhas e Linhos / Sarjas e Tech).
 export const listarProdutos = () =>
   ok(sb.from("azus_produtos")
     .select("*, fotos:azus_produto_fotos(*), cores:azus_produto_cores(*)")
     .eq("ativo", true)
-    .order("ordem"))
+    .order("linha").order("ordem"))
   .then(produtos => produtos.map(p => ({
     ...p,
     fotos: (p.fotos || []).sort((a, b) => a.ordem - b.ordem),

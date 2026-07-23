@@ -44,12 +44,28 @@ function BannerFrete() {
   );
 }
 
+function agruparPorLinha(produtos) {
+  const porLinha = new Map();
+  for (const p of produtos) {
+    const linha = p.linha || "Outros";
+    if (!porLinha.has(linha)) porLinha.set(linha, []);
+    porLinha.get(linha).push(p);
+  }
+  return [...porLinha.entries()];
+}
+
 export function Catalogo({ produtos, onAbrirProduto }) {
+  const grupos = agruparPorLinha(produtos);
   return (
     <div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 14 }}>
-        {produtos.map(p => <CardProduto key={p.id} produto={p} onAbrir={onAbrirProduto} />)}
-      </div>
+      {grupos.map(([linha, itens]) => (
+        <div key={linha} style={{ marginBottom: 30 }}>
+          <h2 style={{ fontFamily: SERIF, fontSize: 19, color: C.brand, fontWeight: 700, margin: "0 0 14px", borderBottom: "2px solid " + C.line, paddingBottom: 8 }}>{linha}</h2>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 14 }}>
+            {itens.map(p => <CardProduto key={p.id} produto={p} onAbrir={onAbrirProduto} />)}
+          </div>
+        </div>
+      ))}
       <BannerFrete />
     </div>
   );
