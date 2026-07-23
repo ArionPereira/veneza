@@ -1,7 +1,7 @@
 import React from "react";
 const { useState, useEffect } = React;
 import { C, SERIF, SH, brl } from "../../constants.js";
-import { listarPedidos, atualizarStatusPedido } from "./pedidosazusdb.js";
+import { listarPedidos, atualizarStatusPedido, sincronizarCatalogoAgora, buscarUltimaSincronizacao } from "./pedidosazusdb.js";
 
 const ROTULOS_STATUS = { novo: "Novo", lancado: "Lançado", cancelado: "Cancelado" };
 const CORES_STATUS = { novo: C.wheat, lancado: C.green, cancelado: C.clay };
@@ -34,6 +34,8 @@ export function PedidosAzus({ sessao, onSair }) {
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState("");
   const [filtro, setFiltro] = useState("novo");
+  const [ultimaSync, setUltimaSync] = useState(null);
+  const [sincronizando, setSincronizando] = useState(false);
 
   const carregar = async (s) => {
     setCarregando(true); setErro("");
@@ -42,9 +44,11 @@ export function PedidosAzus({ sessao, onSair }) {
     setCarregando(false);
   };
 
+  const carregarUltimaSync = () => { buscarUltimaSincronizacao().then(setUltimaSync).catch(() => {}); };
+
   const confirmar = async (s) => {
     setConfirmBusy(true); setConfirmErro("");
-    try { await listarPedidos(sessao.usuario, s); setSenha(s); await carregar(s); }
+    try { await listarPedidos(sessao.usuario, s); setSenha(s); await carregar(s); carregarUltimaSync(); }
     catch (e) { setConfirmErro(e.message || "Senha incorreta."); }
     setConfirmBusy(false);
   };
@@ -52,6 +56,18 @@ export function PedidosAzus({ sessao, onSair }) {
   const marcarStatus = async (id, status) => {
     try { await atualizarStatusPedido(sessao.usuario, senha, id, status); await carregar(senha); }
     catch (e) { alert("Não foi possível atualizar: " + (e.message || e)); }
+  };
+
+  const sincronizarAgora = async () => {
+    setSincronizando(true);
+    try {
+      const r = await sincronizarCatalogoAgora(sessao.usuario, senha);
+      carregarUltimaSync();
+      alert("Catálogo atualizado: " + (r.resumo || "sem mudanças."));
+    } catch (e) {
+      alert("Não foi possível sincronizar: " + (e.message || e));
+    }
+    setSincronizando(false);
   };
 
   if (!senha) return <ConfirmarSenha nome={sessao?.nome} onConfirmar={confirmar} erro={confirmErro} busy={confirmBusy} />;
@@ -71,6 +87,18 @@ export function PedidosAzus({ sessao, onSair }) {
       </header>
 
       <main style={{ maxWidth: 900, margin: "0 auto", padding: "24px 20px 48px" }}>
+        <div style={{ background: C.sage, border: "1px solid " + C.line, borderRadius: 10, padding: "10px 14px", marginBottom: 16, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <div style={{ fontSize: 12.5, color: C.ink, flex: "1 1 260px" }}>
+            <b>Catálogo:</b>{" "}
+            {ultimaSync
+              ? <>{ultimaSync.resumo} <span style={{ color: C.muted }}>({new Date(ultimaSync.executado_em).toLocaleString("pt-BR")})</span></>
+              : <span style={{ color: C.muted }}>ainda sem sincronização registrada</span>}
+          </div>
+          <button onClick={sincronizarAgora} disabled={sincronizando} style={{ ...btnGhost, opacity: sincronizando ? 0.6 : 1 }}>
+            {sincronizando ? "Sincronizando…" : "↻ Atualizar catálogo agora"}
+          </button>
+        </div>
+
         <div style={{ display: "flex", gap: 8, marginBottom: 18, flexWrap: "wrap" }}>
           {["novo", "lancado", "cancelado", "todos"].map(f => (
             <button key={f} onClick={() => setFiltro(f)} style={{
