@@ -1,7 +1,7 @@
 import React from "react";
 const { useState } = React;
-import { SERIF, SH, brl } from "../../constants.js";
-import { AZ as C } from "./azusTheme.js";
+import { brl } from "../../constants.js";
+import { AZ as C, BEBAS } from "./azusTheme.js";
 
 // A Azus produz todos os modelos do 38 ao 52, mesmo quando o catálogo
 // original só lista uma faixa menor pra uma cor específica.
@@ -61,7 +61,7 @@ export function ProdutoDetalhe({ produto, onVoltar, onAdicionarVarios }) {
       <button onClick={onVoltar} style={{ background: "transparent", border: "none", color: C.brand, fontSize: 13.5, fontWeight: 600, cursor: "pointer", padding: 0, marginBottom: 14 }}>← Voltar ao catálogo</button>
 
       {produto.codigo && <div style={{ fontSize: 12, color: C.muted, fontWeight: 600, marginBottom: 2 }}>Código {produto.codigo}</div>}
-      <h1 style={{ fontFamily: SERIF, fontSize: 24, margin: "0 0 6px", color: C.brand, fontWeight: 700 }}>{produto.nome}</h1>
+      <h1 style={{ fontFamily: BEBAS, fontSize: 34, margin: "0 0 4px", color: C.brand, letterSpacing: .3 }}>{produto.nome}</h1>
       <div style={{ fontSize: 20, fontWeight: 700, color: C.ink, marginBottom: 10 }}>
         {produto.preco_varejo != null ? brl(produto.preco_varejo) : "sob consulta"}
       </div>

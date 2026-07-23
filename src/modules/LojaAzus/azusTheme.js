@@ -8,5 +8,9 @@ export const AZ = {
   clay: "#B5562F", green: "#2F8F2C", accent: "#B08A2E",
 };
 
+// Fonte padrão da marca Azus — display condensada, só para títulos/preços
+// em destaque (não serve pra texto corrido, é toda em caixa alta).
+export const BEBAS = "'Bebas Neue', Impact, sans-serif";
+
 export const logoAzus = () => (typeof window !== "undefined" ? window.AZUS_LOGO : null);
 export const fotoAmanda = () => (typeof window !== "undefined" ? window.AZUS_AMANDA_FOTO : null);

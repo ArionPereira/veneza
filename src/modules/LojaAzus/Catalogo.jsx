@@ -1,6 +1,6 @@
 import React from "react";
 import { SERIF, SH, brl } from "../../constants.js";
-import { AZ as C, fotoAmanda } from "./azusTheme.js";
+import { AZ as C, BEBAS, fotoAmanda } from "./azusTheme.js";
 import { REGRAS_FRETE } from "./frete.js";
 import { NUMERO_WHATSAPP_VENDEDORA } from "./mensagemWhatsapp.js";
 
@@ -20,7 +20,7 @@ function CardProduto({ produto, onAbrir }) {
       cursor: "pointer", boxShadow: SH, padding: "16px 16px 15px", display: "flex", flexDirection: "column", gap: 6,
     }}>
       {produto.codigo && <div style={{ fontSize: 11, color: C.muted, fontWeight: 600 }}>Cód. {produto.codigo}</div>}
-      <h3 style={{ fontFamily: SERIF, fontSize: 17, margin: 0, color: C.brand, fontWeight: 600 }}>{produto.nome}</h3>
+      <h3 style={{ fontFamily: BEBAS, fontSize: 21, margin: 0, color: C.brand, letterSpacing: .3 }}>{produto.nome}</h3>
       <div style={{ fontSize: 14, fontWeight: 700, color: C.ink }}>{precoExibido(produto)}</div>
     </button>
   );
@@ -56,7 +56,7 @@ function VendedoraCard() {
         : <div style={{ width: 62, height: 62, borderRadius: "50%", background: C.accent, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: SERIF, fontSize: 22, fontWeight: 700, flexShrink: 0 }}>AG</div>}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 11, letterSpacing: 1.5, textTransform: "uppercase", color: C.accent, fontWeight: 700 }}>Sua vendedora</div>
-        <div style={{ fontFamily: SERIF, fontSize: 16.5, fontWeight: 700, color: "#fff", margin: "2px 0" }}>Amanda Gabrielle</div>
+        <div style={{ fontFamily: BEBAS, fontSize: 21, color: "#fff", margin: "2px 0", letterSpacing: .3 }}>Amanda Gabrielle</div>
         <div style={{ fontSize: 12.5, color: "rgba(255,255,255,.75)" }}>Dúvidas sobre um produto? Fale direto comigo.</div>
       </div>
       <a href={linkWhats} target="_blank" rel="noreferrer" style={{
@@ -85,7 +85,7 @@ export function Catalogo({ produtos, onAbrirProduto }) {
     <div>
       {grupos.map(([linha, itens]) => (
         <div key={linha} style={{ marginBottom: 30 }}>
-          <h2 style={{ fontFamily: SERIF, fontSize: 20, color: C.brand, fontWeight: 800, textTransform: "uppercase", letterSpacing: .5, margin: "0 0 14px", borderBottom: "3px solid " + C.accent, paddingBottom: 8 }}>{linha}</h2>
+          <h2 style={{ fontFamily: BEBAS, fontSize: 26, color: C.brand, textTransform: "uppercase", letterSpacing: 1, margin: "0 0 14px", borderBottom: "3px solid " + C.accent, paddingBottom: 8 }}>{linha}</h2>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 14 }}>
             {itens.map(p => <CardProduto key={p.id} produto={p} onAbrir={onAbrirProduto} />)}
           </div>

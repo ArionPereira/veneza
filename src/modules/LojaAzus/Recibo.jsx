@@ -1,6 +1,6 @@
 import React from "react";
-import { SERIF, brl } from "../../constants.js";
-import { AZ as C } from "./azusTheme.js";
+import { brl } from "../../constants.js";
+import { AZ as C, BEBAS } from "./azusTheme.js";
 import { agruparPorProduto } from "./agruparPedido.js";
 import { PRAZO_BOLETO } from "./mensagemWhatsapp.js";
 
@@ -9,7 +9,7 @@ import { PRAZO_BOLETO } from "./mensagemWhatsapp.js";
 // navegador entra em modo de impressão (ver <style> abaixo).
 export function Recibo({ pedido }) {
   if (!pedido) return null;
-  const { numero, clienteNome, clienteTelefone, formaPagamento, aviamento, estado, observacoes, itens, subtotalProdutos, acrescimoAviamento, ajustePagamento, frete, total, data } = pedido;
+  const { numero, clienteNome, clienteDocumento, clienteTelefone, formaPagamento, aviamento, estado, observacoes, itens, subtotalProdutos, acrescimoAviamento, ajustePagamento, frete, total, data } = pedido;
   const grupos = agruparPorProduto(itens);
 
   return (
@@ -21,12 +21,13 @@ export function Recibo({ pedido }) {
           .azus-recibo-print { display: block !important; position: absolute; top: 0; left: 0; width: 100%; padding: 24px; }
         }
       `}</style>
-      <div style={{ fontFamily: SERIF, fontSize: 22, color: C.brand, fontWeight: 700 }}>Alfaiataria Azus</div>
+      <div style={{ fontFamily: BEBAS, fontSize: 30, color: C.brand, letterSpacing: .5 }}>AZUS MENSWEAR</div>
       <div style={{ fontSize: 13, color: C.muted, marginBottom: 14 }}>Comprovante de pré-pedido — Pedido #{numero}</div>
       <div style={{ fontSize: 12, color: C.muted, marginBottom: 14 }}>{data}</div>
 
       <table style={{ width: "100%", fontSize: 11, color: "#666", marginBottom: 16 }}><tbody>
         <tr><td style={{ padding: "2px 0", width: 110 }}>Cliente</td><td>{clienteNome}</td></tr>
+        {clienteDocumento && <tr><td style={{ padding: "2px 0" }}>CNPJ/CPF</td><td>{clienteDocumento}</td></tr>}
         {clienteTelefone && <tr><td style={{ padding: "2px 0" }}>Telefone</td><td>{clienteTelefone}</td></tr>}
         {estado && <tr><td style={{ padding: "2px 0" }}>Estado</td><td>{estado}</td></tr>}
         <tr><td style={{ padding: "2px 0" }}>Forma de pagamento</td><td>{formaPagamento}{formaPagamento === "Boleto" ? " — " + PRAZO_BOLETO : ""}</td></tr>

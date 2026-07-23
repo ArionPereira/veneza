@@ -121,6 +121,7 @@ export function PedidosAzus({ sessao, onSair }) {
               <div>
                 <div style={{ fontWeight: 700, color: C.ink, fontSize: 15 }}>#{p.numero} — {p.cliente_nome}</div>
                 <div style={{ fontSize: 12.5, color: C.muted }}>
+                  {p.cliente_documento && <>{p.cliente_documento} · </>}
                   {p.cliente_telefone && <>{p.cliente_telefone} · </>}
                   {p.estado && <>{p.estado} · </>}
                   {p.forma_pagamento && <>{p.forma_pagamento} · </>}

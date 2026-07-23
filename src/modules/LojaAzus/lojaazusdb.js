@@ -23,7 +23,7 @@ export const listarProdutos = () =>
 
 // Cria o pedido + itens de forma atômica via RPC (o anon não tem select
 // direto nas tabelas de pedido — ver sql/catalogo_azus_v1.sql).
-export const criarPedido = ({ clienteNome, clienteTelefone, formaPagamento, aviamento, observacoes, itens, ajustePagamento, frete, estado }) =>
+export const criarPedido = ({ clienteNome, clienteTelefone, clienteDocumento, formaPagamento, aviamento, observacoes, itens, ajustePagamento, frete, estado }) =>
   ok(sb.rpc("azus_criar_pedido", {
     p_cliente_nome: clienteNome,
     p_cliente_telefone: clienteTelefone || null,
@@ -42,4 +42,5 @@ export const criarPedido = ({ clienteNome, clienteTelefone, formaPagamento, avia
     p_ajuste_pagamento: ajustePagamento || 0,
     p_frete: frete || 0,
     p_estado: estado || null,
+    p_cliente_documento: clienteDocumento || null,
   })).then(rows => rows[0]);

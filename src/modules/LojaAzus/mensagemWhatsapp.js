@@ -6,12 +6,13 @@ export const NUMERO_WHATSAPP_VENDEDORA = "5545999663050";
 
 export const PRAZO_BOLETO = "Boleto em 30, 60, 90 e 120 dias a partir da data do faturamento.";
 
-export function montarMensagem({ numero, clienteNome, clienteTelefone, formaPagamento, aviamento, estado, observacoes, itens, subtotalProdutos, acrescimoAviamento, ajustePagamento, frete, total }) {
+export function montarMensagem({ numero, clienteNome, clienteDocumento, clienteTelefone, formaPagamento, aviamento, estado, observacoes, itens, subtotalProdutos, acrescimoAviamento, ajustePagamento, frete, total }) {
   const linhas = [];
   linhas.push("🛍️ *Novo pré-pedido — Loja Azus*");
   if (numero) linhas.push("Pedido #" + numero);
   linhas.push("");
   linhas.push("*Cliente:* " + clienteNome);
+  if (clienteDocumento) linhas.push("*CNPJ/CPF:* " + clienteDocumento);
   if (clienteTelefone) linhas.push("*Telefone:* " + clienteTelefone);
   if (estado) linhas.push("*Estado:* " + estado);
   linhas.push("");

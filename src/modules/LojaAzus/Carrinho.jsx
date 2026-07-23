@@ -1,7 +1,7 @@
 import React from "react";
 const { useState, useMemo } = React;
-import { SERIF, SH, brl } from "../../constants.js";
-import { AZ as C } from "./azusTheme.js";
+import { SH, brl } from "../../constants.js";
+import { AZ as C, BEBAS } from "./azusTheme.js";
 import { ESTADOS, calcularFrete } from "./frete.js";
 import { PRAZO_BOLETO } from "./mensagemWhatsapp.js";
 
@@ -45,9 +45,9 @@ function aplicarAviamento(itens, aviamento) {
   return { itens: ajustados, avisos };
 }
 
-export function Carrinho({ itens, onAtualizarQtd, onRemover, onVoltar, onEnviar, enviando }) {
-  const [nome, setNome] = useState("");
-  const [telefone, setTelefone] = useState("");
+export function Carrinho({ itens, onAtualizarQtd, onRemover, onVoltar, onEnviar, enviando, nomePadrao, contatoPadrao }) {
+  const [nome, setNome] = useState(nomePadrao || "");
+  const [telefone, setTelefone] = useState(contatoPadrao || "");
   const [formaPagamento, setFormaPagamento] = useState(FORMAS_PAGAMENTO[0]);
   const [aviamento, setAviamento] = useState("");
   const [estado, setEstado] = useState("");
@@ -89,7 +89,7 @@ export function Carrinho({ itens, onAtualizarQtd, onRemover, onVoltar, onEnviar,
   return (
     <div>
       <button onClick={onVoltar} style={{ background: "transparent", border: "none", color: C.brand, fontSize: 13.5, fontWeight: 600, cursor: "pointer", padding: 0, marginBottom: 14 }}>← Continuar comprando</button>
-      <h1 style={{ fontFamily: SERIF, fontSize: 22, margin: "0 0 16px", color: C.brand }}>Seu carrinho</h1>
+      <h1 style={{ fontFamily: BEBAS, fontSize: 30, margin: "0 0 14px", color: C.brand, letterSpacing: .3 }}>Seu carrinho</h1>
 
       {!itens.length && <div style={{ color: C.muted, fontSize: 14 }}>Seu carrinho está vazio.</div>}
 
@@ -179,7 +179,7 @@ export function Carrinho({ itens, onAtualizarQtd, onRemover, onVoltar, onEnviar,
           </div>
 
           <div style={{ background: C.card, border: "1px solid " + C.line, borderRadius: 14, padding: 18, boxShadow: SH }}>
-            <h2 style={{ fontFamily: SERIF, fontSize: 17, margin: "0 0 14px", color: C.brand }}>Seus dados</h2>
+            <h2 style={{ fontFamily: BEBAS, fontSize: 20, margin: "0 0 14px", color: C.brand, letterSpacing: .3 }}>Seus dados</h2>
             <div style={{ marginBottom: 12 }}>
               <label style={lbl}>Nome</label>
               <input style={inp} value={nome} onChange={e => setNome(e.target.value)} placeholder="Seu nome" />
