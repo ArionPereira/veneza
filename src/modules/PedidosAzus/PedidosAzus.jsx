@@ -123,6 +123,7 @@ export function PedidosAzus({ sessao, onSair }) {
                 <div style={{ fontSize: 12.5, color: C.muted }}>
                   {p.cliente_telefone && <>{p.cliente_telefone} · </>}
                   {p.forma_pagamento && <>{p.forma_pagamento} · </>}
+                  {p.aviamento && <>aviamento: <b>{p.aviamento}</b> · </>}
                   {new Date(p.criado_em).toLocaleString("pt-BR")}
                 </div>
               </div>

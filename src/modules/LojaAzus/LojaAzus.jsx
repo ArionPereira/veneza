@@ -56,21 +56,23 @@ export function LojaAzus() {
     localStorage.setItem(CHAVE_CARRINHO, JSON.stringify(carrinho));
   }, [carrinho]);
 
-  const adicionarAoCarrinho = (item) => {
-    setCarrinho(c => [...c, item]);
+  const adicionarVariosAoCarrinho = (itens) => {
+    setCarrinho(c => [...c, ...itens]);
     setView("catalogo");
   };
   const atualizarQtd = (i, qtd) => setCarrinho(c => c.map((it, idx) => idx === i ? { ...it, quantidade: qtd } : it));
   const removerItem = (i) => setCarrinho(c => c.filter((_, idx) => idx !== i));
 
-  const enviarPedido = async ({ clienteNome, clienteTelefone, formaPagamento, observacoes }) => {
+  // itensParaEnviar já vem com o acréscimo do Private Label aplicado
+  // (calculado em Carrinho.jsx) quando for o caso.
+  const enviarPedido = async ({ clienteNome, clienteTelefone, formaPagamento, aviamento, observacoes, itensParaEnviar }) => {
     setEnviando(true);
     try {
-      const resultado = await criarPedido({ clienteNome, clienteTelefone, formaPagamento, observacoes, itens: carrinho });
+      const resultado = await criarPedido({ clienteNome, clienteTelefone, formaPagamento, aviamento, observacoes, itens: itensParaEnviar });
       const mensagem = montarMensagem({
         numero: resultado.numero,
-        clienteNome, clienteTelefone, formaPagamento, observacoes,
-        itens: carrinho, total: resultado.total,
+        clienteNome, clienteTelefone, formaPagamento, aviamento, observacoes,
+        itens: itensParaEnviar, total: resultado.total,
       });
       abrirWhatsapp(mensagem);
       setPedidoFeito(resultado);
@@ -98,7 +100,7 @@ export function LojaAzus() {
         )}
 
         {view === "produto" && produtoAtual && (
-          <ProdutoDetalhe produto={produtoAtual} onVoltar={() => setView("catalogo")} onAdicionar={adicionarAoCarrinho} />
+          <ProdutoDetalhe produto={produtoAtual} onVoltar={() => setView("catalogo")} onAdicionarVarios={adicionarVariosAoCarrinho} />
         )}
 
         {view === "carrinho" && (

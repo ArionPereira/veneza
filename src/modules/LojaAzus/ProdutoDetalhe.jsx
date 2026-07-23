@@ -2,25 +2,27 @@ import React from "react";
 const { useState, useMemo } = React;
 import { C, SERIF, SH, brl } from "../../constants.js";
 
-function tamanhos(min, max) {
-  if (min == null || max == null) return [];
+// Uma coluna de tamanho por número par entre o menor e o maior tamanho
+// entre TODAS as cores do produto (cada cor habilita só a faixa dela).
+function tamanhosDoProduto(cores) {
+  const comFaixa = cores.filter(c => c.tamanho_min != null && c.tamanho_max != null);
+  if (!comFaixa.length) return [];
+  const min = Math.min(...comFaixa.map(c => c.tamanho_min));
+  const max = Math.max(...comFaixa.map(c => c.tamanho_max));
   const out = [];
   for (let t = min; t <= max; t += 2) out.push(t);
   return out;
 }
 
-const btn = { border: "1px solid " + C.line, borderRadius: 9, padding: "9px 14px", fontSize: 13.5, fontWeight: 600, cursor: "pointer", background: C.card, color: C.ink };
-const btnAtivo = { ...btn, background: C.brand, color: "#fff", borderColor: C.brand };
+const inputCel = { width: 52, textAlign: "center", border: "1px solid " + C.line, borderRadius: 6, padding: "6px 2px", fontSize: 13.5, background: C.paper, color: C.ink };
 
-export function ProdutoDetalhe({ produto, onVoltar, onAdicionar }) {
+export function ProdutoDetalhe({ produto, onVoltar, onAdicionarVarios }) {
   const [fotoIdx, setFotoIdx] = useState(0);
-  const [corId, setCorId] = useState(null);
-  const [tamanho, setTamanho] = useState(null);
-  const [qtd, setQtd] = useState(1);
+  const [qtds, setQtds] = useState({}); // { [corId]: { [tamanho]: quantidade } }
   const [aviso, setAviso] = useState("");
 
-  const cor = useMemo(() => produto.cores.find(c => c.id === corId) || null, [corId, produto.cores]);
-  const opcoesTamanho = cor ? tamanhos(cor.tamanho_min, cor.tamanho_max) : [];
+  const tamanhos = useMemo(() => tamanhosDoProduto(produto.cores), [produto.cores]);
+  const semFaixaDeTamanho = produto.cores.filter(c => c.tamanho_min == null || c.tamanho_max == null);
 
   const precoUnit = produto.preco_varejo != null
     ? produto.preco_varejo
@@ -28,20 +30,36 @@ export function ProdutoDetalhe({ produto, onVoltar, onAdicionar }) {
 
   const foto = produto.fotos[fotoIdx];
 
+  const setQtd = (corId, tamanhoChave, valor) => {
+    const n = Math.max(0, parseInt(valor, 10) || 0);
+    setQtds(q => ({ ...q, [corId]: { ...(q[corId] || {}), [tamanhoChave]: n } }));
+  };
+
+  const totalLinha = (corId) => Object.values(qtds[corId] || {}).reduce((s, n) => s + n, 0);
+  const totalPecas = produto.cores.reduce((s, c) => s + totalLinha(c.id), 0);
+  const totalValor = totalPecas * precoUnit;
+
   const adicionar = () => {
-    if (produto.cores.length && !cor) { setAviso("Escolha uma cor."); return; }
-    if (opcoesTamanho.length && !tamanho) { setAviso("Escolha um tamanho."); return; }
+    const itens = [];
+    for (const cor of produto.cores) {
+      const linha = qtds[cor.id] || {};
+      for (const [tamanhoChave, quantidade] of Object.entries(linha)) {
+        if (quantidade > 0) {
+          itens.push({
+            produtoId: produto.id,
+            produtoNome: produto.nome,
+            corCodigo: cor.codigo,
+            corNome: cor.nome,
+            tamanho: tamanhoChave === "unico" ? null : parseInt(tamanhoChave, 10),
+            quantidade,
+            precoUnit,
+          });
+        }
+      }
+    }
+    if (!itens.length) { setAviso("Informe a quantidade em pelo menos uma cor/tamanho."); return; }
     setAviso("");
-    onAdicionar({
-      produtoId: produto.id,
-      produtoNome: produto.nome,
-      corCodigo: cor?.codigo || null,
-      corNome: cor?.nome || null,
-      tamanho: tamanho || null,
-      quantidade: qtd,
-      precoUnit,
-    });
-    setQtd(1);
+    onAdicionarVarios(itens);
   };
 
   return (
@@ -91,52 +109,81 @@ export function ProdutoDetalhe({ produto, onVoltar, onAdicionar }) {
               <div style={{ fontSize: 11.5, color: C.muted, marginTop: 6 }}>Preço final por faixa de quantidade é confirmado com a vendedora.</div>
             </div>
           )}
+        </div>
+      </div>
 
-          {produto.cores.length > 0 && (
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: C.brand, marginBottom: 8 }}>Cor</div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                {produto.cores.map(c => (
-                  <button key={c.id} onClick={() => { setCorId(c.id); setTamanho(null); }} style={corId === c.id ? btnAtivo : btn}>
-                    {c.codigo} {c.nome}
-                  </button>
+      {tamanhos.length > 0 && (
+        <div style={{ marginTop: 22 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: C.brand, marginBottom: 8 }}>Escolha as cores e quantidades</div>
+          <div style={{ overflowX: "auto", border: "1px solid " + C.line, borderRadius: 10 }}>
+            <table style={{ borderCollapse: "collapse", width: "100%", fontSize: 13 }}>
+              <thead>
+                <tr style={{ background: C.sage }}>
+                  <th style={{ textAlign: "left", padding: "8px 10px", position: "sticky", left: 0, background: C.sage, whiteSpace: "nowrap" }}>Cor</th>
+                  {tamanhos.map(t => <th key={t} style={{ padding: "8px 6px", fontWeight: 700, color: C.brand }}>{t}</th>)}
+                  <th style={{ padding: "8px 10px", fontWeight: 700, color: C.brand }}>Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {produto.cores.filter(c => c.tamanho_min != null && c.tamanho_max != null).map(cor => (
+                  <tr key={cor.id} style={{ borderTop: "1px solid " + C.line }}>
+                    <td style={{ padding: "6px 10px", whiteSpace: "nowrap", position: "sticky", left: 0, background: C.card }}>
+                      {cor.codigo} - {cor.nome}
+                      {(cor.entrega || cor.observacao) && (
+                        <div style={{ fontSize: 10.5, color: C.muted }}>{cor.entrega}{cor.observacao ? (cor.entrega ? " · " : "") + cor.observacao : ""}</div>
+                      )}
+                    </td>
+                    {tamanhos.map(t => {
+                      const habilitado = t >= cor.tamanho_min && t <= cor.tamanho_max;
+                      return (
+                        <td key={t} style={{ padding: "4px 4px", textAlign: "center" }}>
+                          {habilitado
+                            ? <input type="number" min="0" inputMode="numeric" value={qtds[cor.id]?.[t] || ""} placeholder="0"
+                                onChange={e => setQtd(cor.id, t, e.target.value)} style={inputCel} />
+                            : <span style={{ color: C.line }}>—</span>}
+                        </td>
+                      );
+                    })}
+                    <td style={{ padding: "4px 10px", textAlign: "center", fontWeight: 700 }}>{totalLinha(cor.id) || ""}</td>
+                  </tr>
                 ))}
-              </div>
-              {cor && (cor.entrega || cor.observacao) && (
-                <div style={{ fontSize: 12, color: C.muted, marginTop: 6 }}>
-                  {cor.entrega && <>Entrega: {cor.entrega}. </>}{cor.observacao}
-                </div>
-              )}
-            </div>
-          )}
-
-          {cor && opcoesTamanho.length > 0 && (
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: C.brand, marginBottom: 8 }}>Tamanho</div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                {opcoesTamanho.map(t => (
-                  <button key={t} onClick={() => setTamanho(t)} style={{ ...(tamanho === t ? btnAtivo : btn), minWidth: 44 }}>{t}</button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: C.brand }}>Quantidade</div>
-            <div style={{ display: "flex", alignItems: "center", border: "1px solid " + C.line, borderRadius: 9, overflow: "hidden" }}>
-              <button onClick={() => setQtd(q => Math.max(1, q - 1))} style={{ border: "none", background: C.sage, width: 34, height: 34, fontSize: 16, cursor: "pointer" }}>−</button>
-              <div style={{ width: 40, textAlign: "center", fontWeight: 700 }}>{qtd}</div>
-              <button onClick={() => setQtd(q => q + 1)} style={{ border: "none", background: C.sage, width: 34, height: 34, fontSize: 16, cursor: "pointer" }}>+</button>
-            </div>
+              </tbody>
+            </table>
           </div>
+        </div>
+      )}
 
-          {aviso && <div style={{ color: C.clay, fontSize: 13, marginBottom: 10 }}>{aviso}</div>}
+      {semFaixaDeTamanho.length > 0 && (
+        <div style={{ marginTop: 16 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: C.brand, marginBottom: 8 }}>Outras cores (tamanho sob consulta)</div>
+          {semFaixaDeTamanho.map(cor => (
+            <div key={cor.id} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+              <div style={{ flex: 1, fontSize: 13 }}>
+                {cor.codigo} - {cor.nome}
+                {(cor.entrega || cor.observacao) && <span style={{ color: C.muted }}> ({[cor.entrega, cor.observacao].filter(Boolean).join(" · ")})</span>}
+              </div>
+              <input type="number" min="0" inputMode="numeric" value={qtds[cor.id]?.["unico"] || ""} placeholder="0"
+                onChange={e => setQtd(cor.id, "unico", e.target.value)} style={inputCel} />
+            </div>
+          ))}
+        </div>
+      )}
 
-          <button onClick={adicionar} style={{ width: "100%", background: C.brand, color: "#fff", border: "none", borderRadius: 10, padding: "13px", fontSize: 15, fontWeight: 700, cursor: "pointer" }}>
+      {tamanhos.length === 0 && semFaixaDeTamanho.length === 0 && (
+        <div style={{ marginTop: 20, color: C.muted, fontSize: 13 }}>Sem cores cadastradas pra esse modelo no momento.</div>
+      )}
+
+      {(tamanhos.length > 0 || semFaixaDeTamanho.length > 0) && (
+        <div style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+          <div style={{ fontSize: 14 }}>
+            <b>{totalPecas}</b> peça(s) · <b>{brl(totalValor)}</b>
+          </div>
+          {aviso && <div style={{ color: C.clay, fontSize: 13 }}>{aviso}</div>}
+          <button onClick={adicionar} style={{ marginLeft: "auto", background: C.brand, color: "#fff", border: "none", borderRadius: 10, padding: "12px 22px", fontSize: 15, fontWeight: 700, cursor: "pointer" }}>
             Adicionar ao carrinho
           </button>
         </div>
-      </div>
+      )}
     </div>
   );
 }
