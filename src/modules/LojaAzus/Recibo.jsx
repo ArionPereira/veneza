@@ -1,6 +1,6 @@
 import React from "react";
 import { brl } from "../../constants.js";
-import { AZ as C, BEBAS } from "./azusTheme.js";
+import { AZ as C, BEBAS, logoAzus } from "./azusTheme.js";
 import { agruparPorProduto } from "./agruparPedido.js";
 import { PRAZO_BOLETO } from "./mensagemWhatsapp.js";
 
@@ -11,6 +11,7 @@ export function Recibo({ pedido }) {
   if (!pedido) return null;
   const { numero, clienteNome, clienteDocumento, clienteTelefone, formaPagamento, aviamento, estado, observacoes, itens, subtotalProdutos, acrescimoAviamento, ajustePagamento, frete, total, data } = pedido;
   const grupos = agruparPorProduto(itens);
+  const logo = logoAzus();
 
   return (
     <div className="azus-recibo-print" style={{ display: "none" }}>
@@ -21,7 +22,9 @@ export function Recibo({ pedido }) {
           .azus-recibo-print { display: block !important; position: absolute; top: 0; left: 0; width: 100%; padding: 24px; }
         }
       `}</style>
-      <div style={{ fontFamily: BEBAS, fontSize: 30, color: C.brand, letterSpacing: .5 }}>AZUS MENSWEAR</div>
+      {logo
+        ? <img src={logo} alt="Azus Menswear" style={{ height: 34, marginBottom: 4 }} />
+        : <div style={{ fontFamily: BEBAS, fontSize: 30, color: C.brand, letterSpacing: .5 }}>AZUS MENSWEAR</div>}
       <div style={{ fontSize: 13, color: C.muted, marginBottom: 14 }}>Comprovante de pré-pedido — Pedido #{numero}</div>
       <div style={{ fontSize: 12, color: C.muted, marginBottom: 14 }}>{data}</div>
 

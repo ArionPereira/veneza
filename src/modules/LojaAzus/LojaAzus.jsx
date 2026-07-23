@@ -30,7 +30,11 @@ function CabecalhoLoja({ qtdCarrinho, onCarrinho, onLogo, identificacao, onTroca
       <div style={{ maxWidth: 980, margin: "0 auto", padding: "12px 18px", display: "flex", alignItems: "center", gap: 12 }}>
         <div onClick={onLogo} style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: 10 }}>
           {logo
-            ? <img src={logo} alt="Azus Menswear" style={{ height: 34 }} />
+            // logo é navy sobre fundo transparente — precisa de um fundo
+            // claro por trás pra não sumir na barra navy do cabeçalho.
+            ? <div style={{ background: "#fff", borderRadius: 8, padding: "5px 10px", display: "flex", alignItems: "center" }}>
+                <img src={logo} alt="Azus Menswear" style={{ height: 26 }} />
+              </div>
             : (
               <div style={{ lineHeight: 1 }}>
                 <div style={{ fontFamily: BEBAS, fontSize: 27, color: "#fff", letterSpacing: 1 }}>AZUS</div>
