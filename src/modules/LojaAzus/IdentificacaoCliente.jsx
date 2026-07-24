@@ -1,6 +1,7 @@
 import React from "react";
 const { useState } = React;
 import { BEBAS, AZ as C, logoAzus } from "./azusTheme.js";
+import { ESTADOS } from "./frete.js";
 
 const inp = { width: "100%", padding: "12px 14px", borderRadius: 9, border: "1px solid " + C.line, fontSize: 15, background: "#fff", color: C.ink, boxSizing: "border-box" };
 const lbl = { fontSize: 12, fontWeight: 700, color: C.brand, marginBottom: 6, display: "block" };
@@ -19,6 +20,7 @@ export function IdentificacaoCliente({ onConfirmar }) {
   const [nome, setNome] = useState("");
   const [documento, setDocumento] = useState("");
   const [contato, setContato] = useState("");
+  const [estado, setEstado] = useState("");
   const [erro, setErro] = useState("");
   const logo = logoAzus();
 
@@ -27,7 +29,8 @@ export function IdentificacaoCliente({ onConfirmar }) {
     if (!nome.trim()) { setErro("Informe seu nome."); return; }
     if (!documentoValido(documento)) { setErro("Informe um CNPJ (14 dígitos) ou CPF (11 dígitos) válido."); return; }
     if (!contato.trim()) { setErro("Informe um telefone/WhatsApp de contato."); return; }
-    onConfirmar({ nome: nome.trim(), documento: documento.trim(), contato: contato.trim() });
+    if (!estado) { setErro("Escolha o seu estado — é ele que define o frete."); return; }
+    onConfirmar({ nome: nome.trim(), documento: documento.trim(), contato: contato.trim(), estado });
   };
 
   return (
@@ -55,9 +58,16 @@ export function IdentificacaoCliente({ onConfirmar }) {
           <label style={lbl}>CNPJ ou CPF</label>
           <input style={inp} value={documento} onChange={e => setDocumento(e.target.value)} placeholder="00.000.000/0000-00" inputMode="numeric" />
         </div>
-        <div style={{ marginBottom: 20 }}>
+        <div style={{ marginBottom: 14 }}>
           <label style={lbl}>Telefone / WhatsApp</label>
           <input style={inp} value={contato} onChange={e => setContato(e.target.value)} placeholder="(00) 00000-0000" inputMode="tel" />
+        </div>
+        <div style={{ marginBottom: 20 }}>
+          <label style={lbl}>Estado</label>
+          <select style={inp} value={estado} onChange={e => { setEstado(e.target.value); setErro(""); }}>
+            <option value="">Selecione…</option>
+            {ESTADOS.map(([uf, nomeEstado]) => <option key={uf} value={uf}>{nomeEstado}</option>)}
+          </select>
         </div>
 
         {erro && <div style={{ color: C.clay, fontSize: 13, marginBottom: 14 }}>{erro}</div>}

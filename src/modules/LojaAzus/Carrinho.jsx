@@ -45,12 +45,12 @@ function aplicarAviamento(itens, aviamento) {
   return { itens: ajustados, avisos };
 }
 
-export function Carrinho({ itens, onAtualizarQtd, onRemover, onVoltar, onEnviar, enviando, nomePadrao, contatoPadrao }) {
+export function Carrinho({ itens, onAtualizarQtd, onRemover, onVoltar, onEnviar, enviando, nomePadrao, contatoPadrao, estadoPadrao }) {
   const [nome, setNome] = useState(nomePadrao || "");
   const [telefone, setTelefone] = useState(contatoPadrao || "");
   const [formaPagamento, setFormaPagamento] = useState(FORMAS_PAGAMENTO[0]);
   const [aviamento, setAviamento] = useState("");
-  const [estado, setEstado] = useState("");
+  const [estado, setEstado] = useState(estadoPadrao || "");
   const [observacoes, setObservacoes] = useState("");
   const [erro, setErro] = useState("");
 
@@ -150,6 +150,18 @@ export function Carrinho({ itens, onAtualizarQtd, onRemover, onVoltar, onEnviar,
           {formaPagamento === "Boleto" && (
             <div style={{ background: C.sage, color: C.ink, borderRadius: 8, padding: "9px 12px", fontSize: 12.5, marginBottom: 16 }}>
               ℹ️ {PRAZO_BOLETO}
+            </div>
+          )}
+
+          {frete && !frete.indisponivel && !frete.gratis && (
+            <div style={{ background: "#E7F5E4", border: "1px solid " + C.green, borderRadius: 10, padding: "11px 14px", fontSize: 13, marginBottom: 16 }}>
+              <div style={{ fontWeight: 700, color: C.ink, marginBottom: 6 }}>
+                🚚 Faltam <span style={{ color: C.brand }}>{brl(frete.gratisAcima - baseParaPagamento)}</span> pra você ganhar <span style={{ color: C.green }}>FRETE GRÁTIS</span> — economia de {brl(frete.taxa)}!
+              </div>
+              <div style={{ height: 7, background: "#fff", borderRadius: 999, overflow: "hidden", border: "1px solid " + C.line }}>
+                <div style={{ width: Math.min(100, (baseParaPagamento / frete.gratisAcima) * 100) + "%", height: "100%", background: C.green }} />
+              </div>
+              <div style={{ fontSize: 11.5, color: C.muted, marginTop: 5 }}>Adicione mais produtos e zere o frete de {brl(frete.taxa)} da região {frete.regiao}.</div>
             </div>
           )}
 

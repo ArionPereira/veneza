@@ -1,7 +1,8 @@
 import React from "react";
 const { useState, useEffect } = React;
-import { SERIF, SH } from "../../constants.js";
+import { SERIF, SH, brl } from "../../constants.js";
 import { AZ as C, BEBAS, logoAzus } from "./azusTheme.js";
+import { calcularFrete } from "./frete.js";
 import { listarProdutos, criarPedido } from "./lojaazusdb.js";
 import { montarMensagem, abrirWhatsapp } from "./mensagemWhatsapp.js";
 import { Catalogo } from "./Catalogo.jsx";
@@ -21,6 +22,32 @@ function carregarCarrinho() {
 function carregarIdentificacao() {
   try { return JSON.parse(localStorage.getItem(CHAVE_IDENTIFICACAO) || "null"); }
   catch { return null; }
+}
+
+// Barra que acompanha o cliente enquanto ele navega: mostra quanto falta
+// pro pedido dele ganhar frete grátis na região (definida pelo estado da
+// identificação) — incentivo direto pra fechar um pedido maior.
+function BarraFreteGratis({ carrinho, estado }) {
+  if (!estado || !carrinho.length) return null;
+  const subtotal = carrinho.reduce((s, it) => s + it.precoUnit * it.quantidade, 0);
+  const frete = calcularFrete(estado, subtotal);
+  if (frete.indisponivel) return null;
+
+  const progresso = Math.min(1, subtotal / frete.gratisAcima);
+  return (
+    <div style={{ background: frete.gratis ? "#E7F5E4" : C.sage, borderBottom: "1px solid " + C.line, padding: "9px 18px" }}>
+      <div style={{ maxWidth: 980, margin: "0 auto" }}>
+        <div style={{ fontSize: 12.5, color: C.ink, fontWeight: 600, marginBottom: 5 }}>
+          {frete.gratis
+            ? <>🎉 Parabéns! Seu pedido já tem <b style={{ color: C.green }}>FRETE GRÁTIS</b> pra {frete.regiao}.</>
+            : <>🚚 Faltam <b style={{ color: C.brand }}>{brl(frete.gratisAcima - subtotal)}</b> pra você ganhar <b style={{ color: C.green }}>FRETE GRÁTIS</b> — economia de {brl(frete.taxa)}!</>}
+        </div>
+        <div style={{ height: 6, background: "#fff", borderRadius: 999, overflow: "hidden", border: "1px solid " + C.line }}>
+          <div style={{ width: (progresso * 100) + "%", height: "100%", background: frete.gratis ? C.green : C.accent, transition: "width .3s ease" }} />
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function CabecalhoLoja({ qtdCarrinho, onCarrinho, onLogo, identificacao, onTrocarIdentificacao }) {
@@ -142,6 +169,9 @@ export function LojaAzus() {
     <div style={{ minHeight: "100vh", background: C.paper }}>
       <CabecalhoLoja qtdCarrinho={qtdCarrinho} onCarrinho={() => setView("carrinho")} onLogo={() => setView("catalogo")}
         identificacao={identificacao} onTrocarIdentificacao={trocarIdentificacao} />
+      {(view === "catalogo" || view === "produto") && (
+        <BarraFreteGratis carrinho={carrinho} estado={identificacao.estado} />
+      )}
       <main style={{ maxWidth: 960, margin: "0 auto", padding: "24px 18px 60px" }}>
         {carregando && <div style={{ textAlign: "center", color: C.muted, padding: 60 }}>Carregando catálogo…</div>}
         {erro && <div style={{ textAlign: "center", color: C.clay, padding: 60 }}>{erro}</div>}
@@ -157,7 +187,7 @@ export function LojaAzus() {
         {view === "carrinho" && (
           <Carrinho itens={carrinho} onAtualizarQtd={atualizarQtd} onRemover={removerItem}
             onVoltar={() => setView("catalogo")} onEnviar={enviarPedido} enviando={enviando}
-            nomePadrao={identificacao.nome} contatoPadrao={identificacao.contato} />
+            nomePadrao={identificacao.nome} contatoPadrao={identificacao.contato} estadoPadrao={identificacao.estado} />
         )}
 
         {view === "sucesso" && pedidoFeito && (
