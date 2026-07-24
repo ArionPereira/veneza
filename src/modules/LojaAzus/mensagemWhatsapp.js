@@ -7,41 +7,49 @@ export const NUMERO_WHATSAPP_VENDEDORA = "5545999663050";
 
 export const PRAZO_BOLETO = "Boleto em 30, 60, 90 e 120 dias a partir da data do faturamento.";
 
+const DIVISOR = "━━━━━━━━━━━━━━━";
+
 export function montarMensagem({ numero, clienteNome, clienteDocumento, clienteTelefone, formaPagamento, aviamento, estado, observacoes, itens, subtotalProdutos, acrescimoAviamento, ajustePagamento, frete, total }) {
+  const grupos = agruparPorProduto(itens);
+  const totalPecas = grupos.reduce((s, g) => s + g.totalPecas, 0);
+
   const linhas = [];
-  linhas.push("🛍️ *Novo pré-pedido — Loja Azus*");
-  if (numero) linhas.push("Pedido #" + numero);
+  linhas.push("🛍️ *NOVO PRÉ-PEDIDO — LOJA AZUS*");
+  if (numero) linhas.push("*Pedido #" + numero + "*");
   linhas.push("");
-  linhas.push("*Cliente:* " + clienteNome);
-  if (clienteDocumento) linhas.push("*CNPJ/CPF:* " + clienteDocumento);
-  if (clienteTelefone) linhas.push("*Telefone:* " + clienteTelefone);
-  if (estado) linhas.push("*Estado:* " + estado);
+  linhas.push("👤 *Cliente:* " + clienteNome);
+  if (clienteDocumento) linhas.push("🪪 *CNPJ/CPF:* " + clienteDocumento);
+  if (clienteTelefone) linhas.push("📱 *Telefone:* " + clienteTelefone);
+  if (estado) linhas.push("📍 *Estado:* " + estado);
   linhas.push("");
 
-  linhas.push("*Itens:*");
-  const grupos = agruparPorProduto(itens);
+  linhas.push("📦 *ITENS* — " + totalPecas + " peça(s)");
+  linhas.push("_formato: tamanho (quantidade)_");
   grupos.forEach(g => {
-    linhas.push("");
+    linhas.push(DIVISOR);
     linhas.push("*" + g.produtoNome.toUpperCase() + "*");
     g.cores.forEach(c => {
-      const partes = c.linhas.map(l => "tam. " + l.tamanho + " (" + l.quantidade + " un.)");
-      linhas.push(nomeCor(c.corNome) + ": " + partes.join(", "));
+      const partes = [...c.linhas]
+        .sort((a, b) => (a.tamanho || 0) - (b.tamanho || 0))
+        .map(l => l.tamanho + " (" + l.quantidade + ")");
+      linhas.push("• " + nomeCor(c.corNome) + ": " + partes.join("  "));
     });
-    linhas.push("Subtotal: " + brl(g.subtotal) + " (" + g.totalPecas + " peça(s))");
+    linhas.push("_" + g.totalPecas + " peça(s) · " + brl(g.subtotal) + "_");
   });
+  linhas.push(DIVISOR);
 
   linhas.push("");
-  linhas.push("*Resumo:*");
+  linhas.push("💰 *RESUMO*");
   linhas.push("Valor dos produtos: " + brl(subtotalProdutos));
   if (acrescimoAviamento) linhas.push("Acréscimo aviamento (" + aviamento + "): +" + brl(acrescimoAviamento));
   if (ajustePagamento) linhas.push((ajustePagamento < 0 ? "Desconto" : "Acréscimo") + " " + formaPagamento + ": " + (ajustePagamento < 0 ? "−" : "+") + brl(Math.abs(ajustePagamento)));
-  if (frete) linhas.push("Frete: " + brl(frete));
-  linhas.push("*Total:* " + brl(total));
+  linhas.push("Frete" + (estado ? " (" + estado + ")" : "") + ": " + (frete ? brl(frete) : "Grátis 🎉"));
+  linhas.push("*TOTAL: " + brl(total) + "*");
   linhas.push("");
-  if (formaPagamento) linhas.push("*Forma de pagamento:* " + formaPagamento);
-  if (formaPagamento === "Boleto") linhas.push(PRAZO_BOLETO);
-  if (aviamento) linhas.push("*Aviamento:* " + aviamento);
-  if (observacoes) { linhas.push(""); linhas.push("*Observações:* " + observacoes); }
+  if (formaPagamento) linhas.push("💳 *Pagamento:* " + formaPagamento);
+  if (formaPagamento === "Boleto") linhas.push("_" + PRAZO_BOLETO + "_");
+  if (aviamento) linhas.push("🧵 *Aviamento:* " + aviamento);
+  if (observacoes) linhas.push("📝 *Observações:* " + observacoes);
   return linhas.join("\n");
 }
 

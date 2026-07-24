@@ -21,7 +21,11 @@ const norm = (s) => (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").t
 // As bermudas vêm misturadas com as calças no catálogo "Bermudas, Malhas
 // e Linhos" da Azus — na vitrine elas ganham uma seção própria. A
 // detecção é pelo texto (o catálogo não marca a categoria): descrição/nome
-// citando "bermuda" ou "versão curta" (caso da Munique curta).
+// citando "bermuda" ou "versão curta" (caso da Munique curta). Ela SÓ
+// roda dentro da linha "Bermudas, Malhas e Linhos": produto das outras
+// linhas nunca muda de seção, mesmo que a descrição cite uma bermuda de
+// passagem (ex.: a calça Bellagio, da Alfaiataria, menciona "bermuda
+// Ponza" no texto — e não é bermuda).
 function ehBermuda(p) {
   const texto = norm(p.nome + " " + (p.descricao || ""));
   return texto.includes("bermuda") || texto.includes("versao curta");
@@ -30,8 +34,7 @@ function ehBermuda(p) {
 const ORDEM_SECOES = ["Alfaiataria", "Malhas e Linhos", "Bermudas", "Sarjas e Tech"];
 
 function secaoDoProduto(p) {
-  if (ehBermuda(p)) return "Bermudas";
-  if (p.linha === "Bermudas, Malhas e Linhos") return "Malhas e Linhos";
+  if (p.linha === "Bermudas, Malhas e Linhos") return ehBermuda(p) ? "Bermudas" : "Malhas e Linhos";
   return p.linha || "Outros";
 }
 
