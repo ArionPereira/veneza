@@ -74,12 +74,12 @@ const logo = "data:image/png;base64," + readFileSync("public/logo_b64.txt", "utf
 // 2b) marca Azus (logotipo + foto da vendedora) — opcional: só embute se o
 // arquivo existir (public/azus_logo_b64.txt / public/azus_amanda_b64.txt),
 // pra não quebrar o build antes desses arquivos serem gerados.
-function lerBase64Opcional(caminho) {
-  try { return "data:image/png;base64," + readFileSync(caminho, "utf8").trim(); }
+function lerBase64Opcional(caminho, mime = "image/png") {
+  try { return "data:" + mime + ";base64," + readFileSync(caminho, "utf8").trim(); }
   catch { return ""; }
 }
 const azusLogo = lerBase64Opcional("public/azus_logo_b64.txt");
-const azusAmanda = lerBase64Opcional("public/azus_amanda_b64.txt");
+const azusAmanda = lerBase64Opcional("public/azus_amanda_b64.txt", "image/jpeg");
 
 // 3) monta o index.html
 const html = `<!doctype html>

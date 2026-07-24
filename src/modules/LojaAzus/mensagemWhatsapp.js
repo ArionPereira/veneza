@@ -1,7 +1,8 @@
 import { brl } from "../../constants.js";
 import { agruparPorProduto } from "./agruparPedido.js";
+import { nomeCor } from "./azusTheme.js";
 
-// Número da vendedora (Azus) que recebe os pré-pedidos pelo WhatsApp.
+// Número da representante (Azus) que recebe os pré-pedidos pelo WhatsApp.
 export const NUMERO_WHATSAPP_VENDEDORA = "5545999663050";
 
 export const PRAZO_BOLETO = "Boleto em 30, 60, 90 e 120 dias a partir da data do faturamento.";
@@ -24,7 +25,7 @@ export function montarMensagem({ numero, clienteNome, clienteDocumento, clienteT
     linhas.push("*" + g.produtoNome.toUpperCase() + "*");
     g.cores.forEach(c => {
       const partes = c.linhas.map(l => "tam. " + l.tamanho + " (" + l.quantidade + " un.)");
-      linhas.push(c.corNome + ": " + partes.join(", "));
+      linhas.push(nomeCor(c.corNome) + ": " + partes.join(", "));
     });
     linhas.push("Subtotal: " + brl(g.subtotal) + " (" + g.totalPecas + " peça(s))");
   });

@@ -14,3 +14,9 @@ export const BEBAS = "'Bebas Neue', Impact, sans-serif";
 
 export const logoAzus = () => (typeof window !== "undefined" ? window.AZUS_LOGO : null);
 export const fotoAmanda = () => (typeof window !== "undefined" ? window.AZUS_AMANDA_FOTO : null);
+
+// O catálogo guarda os nomes de cor em minúsculas ("azul claro", "off
+// white") — na vitrine exibimos com inicial maiúscula em cada palavra
+// ("Azul Claro"). Só apresentação: o dado gravado no pedido não muda.
+export const nomeCor = (s) =>
+  (s || "").split(" ").map(p => (p ? p[0].toUpperCase() + p.slice(1) : p)).join(" ");

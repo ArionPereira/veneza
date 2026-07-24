@@ -1,6 +1,6 @@
 import React from "react";
 import { brl } from "../../constants.js";
-import { AZ as C, BEBAS, logoAzus } from "./azusTheme.js";
+import { AZ as C, BEBAS, logoAzus, nomeCor } from "./azusTheme.js";
 import { agruparPorProduto } from "./agruparPedido.js";
 import { PRAZO_BOLETO } from "./mensagemWhatsapp.js";
 
@@ -43,7 +43,7 @@ export function Recibo({ pedido }) {
           <div style={{ fontSize: 13, fontWeight: 700, color: C.brand, borderBottom: "1px solid #ccc", padding: "4px 0" }}>{g.produtoNome}</div>
           {g.cores.map((c, ci) => (
             <div key={ci} style={{ fontSize: 12, padding: "3px 0" }}>
-              <b>{c.corNome}:</b> {c.linhas.map(l => "tam. " + l.tamanho + " (" + l.quantidade + " un.)").join(", ")}
+              <b>{nomeCor(c.corNome)}:</b> {c.linhas.map(l => "tam. " + l.tamanho + " (" + l.quantidade + " un.)").join(", ")}
             </div>
           ))}
           <div style={{ fontSize: 12, textAlign: "right", color: "#444" }}>Subtotal: {brl(g.subtotal)} ({g.totalPecas} peça(s))</div>
@@ -59,7 +59,7 @@ export function Recibo({ pedido }) {
       </div>
 
       <div style={{ marginTop: 24, fontSize: 10.5, color: "#999" }}>
-        Este é um comprovante do pré-pedido enviado pela Loja Azus. O pedido é confirmado após contato da vendedora.
+        Este é um comprovante do pré-pedido enviado pela Loja Azus. O pedido é confirmado após contato da representante.
       </div>
     </div>
   );

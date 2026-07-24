@@ -1,7 +1,7 @@
 import React from "react";
 const { useState, useMemo } = React;
 import { SH, brl } from "../../constants.js";
-import { AZ as C, BEBAS } from "./azusTheme.js";
+import { AZ as C, BEBAS, nomeCor } from "./azusTheme.js";
 import { ESTADOS, calcularFrete } from "./frete.js";
 import { PRAZO_BOLETO } from "./mensagemWhatsapp.js";
 
@@ -77,7 +77,7 @@ export function Carrinho({ itens, onAtualizarQtd, onRemover, onVoltar, onEnviar,
     if (!aviamento) { setErro("Escolha o aviamento (Azus ou Private Label)."); return; }
     if (faltaParaMinimo > 0) { setErro("Pedido mínimo de " + brl(PEDIDO_MINIMO) + " — adicione mais produtos."); return; }
     if (!estado) { setErro("Escolha o estado pra calcular o frete."); return; }
-    if (frete?.indisponivel) { setErro("Frete pra essa região ainda não está configurado — fala direto com a vendedora pelo WhatsApp pra fechar esse pedido."); return; }
+    if (frete?.indisponivel) { setErro("Frete pra essa região ainda não está configurado — fala direto com a representante pelo WhatsApp pra fechar esse pedido."); return; }
     setErro("");
     onEnviar({
       clienteNome: nome.trim(), clienteTelefone: telefone.trim(), formaPagamento, aviamento, estado,
@@ -98,7 +98,7 @@ export function Carrinho({ itens, onAtualizarQtd, onRemover, onVoltar, onEnviar,
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontWeight: 700, color: C.ink, fontSize: 14.5 }}>{it.produtoNome}</div>
             <div style={{ fontSize: 12.5, color: C.muted }}>
-              {it.corNome && <>Cor {it.corNome} · </>}
+              {it.corNome && <>Cor {nomeCor(it.corNome)} · </>}
               {it.tamanho && <>Tam. {it.tamanho} · </>}
               {brl(it.precoUnit)} un.
             </div>
@@ -136,7 +136,7 @@ export function Carrinho({ itens, onAtualizarQtd, onRemover, onVoltar, onEnviar,
             <div style={{ background: "#FBEFC9", color: C.ink, borderRadius: 8, padding: "10px 12px", fontSize: 12.5, marginBottom: 16 }}>
               ⚠ Não atingiu o mínimo de {MINIMO_PRIVATE_LABEL} peças (acréscimo de {brl(ACRESCIMO_PRIVATE_LABEL)}/peça já aplicado nos itens abaixo):
               <ul style={{ margin: "6px 0 0", paddingLeft: 18 }}>
-                {avisos.map(a => <li key={a.chave}>{a.produtoNome} — {a.corNome}: {a.total} peça(s)</li>)}
+                {avisos.map(a => <li key={a.chave}>{a.produtoNome} — {nomeCor(a.corNome)}: {a.total} peça(s)</li>)}
               </ul>
             </div>
           )}

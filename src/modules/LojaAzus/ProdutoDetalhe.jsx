@@ -1,7 +1,7 @@
 import React from "react";
 const { useState } = React;
 import { brl } from "../../constants.js";
-import { AZ as C, BEBAS } from "./azusTheme.js";
+import { AZ as C, BEBAS, nomeCor } from "./azusTheme.js";
 
 // A Azus produz todos os modelos do 38 ao 52, mesmo quando o catálogo
 // original só lista uma faixa menor pra uma cor específica.
@@ -15,6 +15,10 @@ function producaoProgramada(cor) {
 }
 
 const inputCel = { width: 52, textAlign: "center", border: "1px solid " + C.line, borderRadius: 6, padding: "6px 2px", fontSize: 13.5, background: C.paper, color: C.ink };
+
+// Só a primeira letra ("imediato" → "Imediato"); datas e frases longas
+// ficam como estão no catálogo.
+const rotuloEntrega = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s);
 
 export function ProdutoDetalhe({ produto, onVoltar, onAdicionarVarios }) {
   const [qtds, setQtds] = useState({}); // { [corId]: { [tamanho]: quantidade } }
@@ -79,7 +83,7 @@ export function ProdutoDetalhe({ produto, onVoltar, onAdicionarVarios }) {
               {f.min === 1 ? "Compra livre" : "+" + f.min + " peças"}: <b>{brl(f.preco)}</b>
             </div>
           ))}
-          <div style={{ fontSize: 11.5, color: C.muted, marginTop: 6 }}>Preço final por faixa de quantidade é confirmado com a vendedora.</div>
+          <div style={{ fontSize: 11.5, color: C.muted, marginTop: 6 }}>Preço final por faixa de quantidade é confirmado com a representante.</div>
         </div>
       )}
 
@@ -103,11 +107,11 @@ export function ProdutoDetalhe({ produto, onVoltar, onAdicionarVarios }) {
                   const programada = producaoProgramada(cor);
                   return (
                     <tr key={cor.id} style={{ borderTop: "1px solid " + C.line, background: programada ? "#FBEFC9" : "transparent" }}>
-                      <td style={{ padding: "6px 10px", whiteSpace: "nowrap", position: "sticky", left: 0, background: programada ? "#FBEFC9" : C.card }}>
-                        {cor.nome}
+                      <td style={{ padding: "6px 10px", whiteSpace: "nowrap", position: "sticky", left: 0, background: programada ? "#FBEFC9" : C.card, fontWeight: 600 }}>
+                        {nomeCor(cor.nome)}
                         {(cor.entrega || cor.observacao) && (
                           <div style={{ fontSize: 10.5, color: programada ? "#8A6D00" : C.muted, fontWeight: programada ? 700 : 400 }}>
-                            {programada && "📅 "}{cor.entrega}{cor.observacao ? (cor.entrega ? " · " : "") + cor.observacao : ""}
+                            {programada && "📅 "}{rotuloEntrega(cor.entrega)}{cor.observacao ? (cor.entrega ? " · " : "") + cor.observacao : ""}
                           </div>
                         )}
                       </td>

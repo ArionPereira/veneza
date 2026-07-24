@@ -37,7 +37,7 @@ function BannerFrete() {
             <b>{regiao}</b><br />
             {regra
               ? <>{brl(regra.taxa)} · grátis acima de {brl(regra.gratisAcima)}</>
-              : <span style={{ color: C.clay }}>consulte a vendedora</span>}
+              : <span style={{ color: C.clay }}>consulte a representante</span>}
           </div>
         ))}
       </div>
@@ -46,7 +46,7 @@ function BannerFrete() {
   );
 }
 
-function VendedoraCard() {
+function RepresentanteCard() {
   const foto = fotoAmanda();
   const linkWhats = "https://wa.me/" + NUMERO_WHATSAPP_VENDEDORA;
   return (
@@ -55,7 +55,7 @@ function VendedoraCard() {
         ? <img src={foto} alt="Amanda Gabrielle" style={{ width: 62, height: 62, borderRadius: "50%", objectFit: "cover", border: "2px solid " + C.accent, flexShrink: 0 }} />
         : <div style={{ width: 62, height: 62, borderRadius: "50%", background: C.accent, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: SERIF, fontSize: 22, fontWeight: 700, flexShrink: 0 }}>AG</div>}
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 11, letterSpacing: 1.5, textTransform: "uppercase", color: C.accent, fontWeight: 700 }}>Sua vendedora</div>
+        <div style={{ fontSize: 11, letterSpacing: 1.5, textTransform: "uppercase", color: C.accent, fontWeight: 700 }}>Sua representante</div>
         <div style={{ fontFamily: BEBAS, fontSize: 21, color: "#fff", margin: "2px 0", letterSpacing: .3 }}>Amanda Gabrielle</div>
         <div style={{ fontSize: 12.5, color: "rgba(255,255,255,.75)" }}>Dúvidas sobre um produto? Fale direto comigo.</div>
       </div>
@@ -91,7 +91,7 @@ export function Catalogo({ produtos, onAbrirProduto }) {
           </div>
         </div>
       ))}
-      <VendedoraCard />
+      <RepresentanteCard />
       <BannerFrete />
     </div>
   );

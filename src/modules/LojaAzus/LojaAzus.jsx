@@ -42,7 +42,7 @@ function CabecalhoLoja({ qtdCarrinho, onCarrinho, onLogo, identificacao, onTroca
               </div>
             )}
           <div style={{ width: 1, alignSelf: "stretch", background: "rgba(255,255,255,.25)" }} />
-          <h1 style={{ fontFamily: SERIF, fontSize: 15, margin: 0, fontWeight: 600, color: "rgba(255,255,255,.85)" }}>Loja de calças</h1>
+          <h1 style={{ fontFamily: SERIF, fontSize: 15, margin: 0, fontWeight: 600, color: "rgba(255,255,255,.85)" }}>Faça seu pré-pedido</h1>
         </div>
         <button onClick={onCarrinho} style={{
           marginLeft: "auto", background: C.accent, color: "#fff", border: "none", borderRadius: 9,
@@ -166,7 +166,7 @@ export function LojaAzus() {
             <h2 style={{ fontFamily: BEBAS, color: C.brand, fontSize: 30, letterSpacing: .5 }}>Pedido #{pedidoFeito.numero} enviado!</h2>
             <p style={{ color: C.muted, fontSize: 14.5, maxWidth: 420, margin: "10px auto 24px" }}>
               Abrimos o WhatsApp com o resumo do seu pedido — é só confirmar o envio por lá.
-              A vendedora vai entrar em contato para fechar os detalhes.
+              A representante vai entrar em contato para fechar os detalhes.
             </p>
             <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
               <button onClick={() => window.print()} style={{ background: C.sage, color: C.brand, border: "1px solid " + C.line, borderRadius: 9, padding: "11px 20px", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
